@@ -212,6 +212,24 @@
     .dev-tx-right.debit { color: #dc2626; }
     .dev-tx-desc { max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+    /* ── API trigger buttons ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .trigger-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 14px; }
+    .trigger-btn { background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 8px; padding: 10px; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 3px; transition: all 0.15s; }
+    .trigger-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .trigger-btn:not(:disabled):not(.running) { background: white; border-color: #302b63; box-shadow: 0 2px 6px rgba(48,43,99,0.12); }
+    .trigger-btn:not(:disabled):not(.running):hover { background: #f5f4fb; box-shadow: 0 4px 12px rgba(48,43,99,0.18); transform: translateY(-1px); }
+    .trigger-btn:not(:disabled):not(.running):active { transform: translateY(0); box-shadow: 0 1px 3px rgba(48,43,99,0.1); }
+    .trigger-btn.running { background: #eff6ff; border-color: #93c5fd; cursor: not-allowed; }
+    .trigger-btn-name { font-size: 12px; font-weight: 700; color: #302b63; }
+    .trigger-btn-path { font-size: 9px; font-family: monospace; color: #64748b; }
+    .trigger-btn-badge { font-size: 8px; font-weight: 700; color: #7c3aed; letter-spacing: 0.03em; }
+    .trigger-spinner { display: none; width: 10px; height: 10px; border: 1.5px solid #bfdbfe; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.7s linear infinite; margin-top: 1px; }
+    .trigger-btn.running .trigger-btn-path { display: none; }
+    .trigger-btn.running .trigger-btn-badge { display: none; }
+    .trigger-btn.running .trigger-spinner { display: inline-block; }
+    .trigger-divider { border: none; border-top: 1px solid #f1f3f5; margin: 0 0 14px; }
+
     @media (max-width: 1200px) { .app-layout { grid-template-columns: 300px 1fr; } .dev-panel { display: none; } }
   </style>
 </head>
@@ -387,6 +405,33 @@
   <!-- ── Right: Dev Panel ── -->
   <div class="dev-panel">
     <div class="dev-title">Dev Panel</div>
+
+    <div class="trigger-grid">
+      <button class="trigger-btn" id="trig-account" disabled onclick="triggerAccount()" aria-label="Fetch Account">
+        <span class="trigger-btn-name">Account</span>
+        <span class="trigger-btn-path">GET /account</span>
+        <span class="trigger-spinner"></span>
+      </button>
+      <button class="trigger-btn" id="trig-balance" disabled onclick="triggerBalance()" aria-label="Fetch Balance">
+        <span class="trigger-btn-name">Balance</span>
+        <span class="trigger-btn-path">GET /balance</span>
+        <span class="trigger-spinner"></span>
+      </button>
+      <button class="trigger-btn" id="trig-identity" disabled onclick="triggerIdentity()" aria-label="Fetch Identity">
+        <span class="trigger-btn-name">Identity</span>
+        <span class="trigger-btn-path">GET /identity</span>
+        <span class="trigger-btn-badge">ASYNC JOB</span>
+        <span class="trigger-spinner"></span>
+      </button>
+      <button class="trigger-btn" id="trig-transactions" disabled onclick="triggerTransactions()" aria-label="Fetch Transactions">
+        <span class="trigger-btn-name">Transactions</span>
+        <span class="trigger-btn-path">GET /transactions</span>
+        <span class="trigger-btn-badge">ASYNC JOB</span>
+        <span class="trigger-spinner"></span>
+      </button>
+    </div>
+    <hr class="trigger-divider">
+
     <div class="dev-card">
       <div class="dev-card-label">Account</div>
       <div id="dev-account"><p class="dev-placeholder">Waiting for bank link…</p></div>
@@ -656,10 +701,15 @@
 
       navTo('screen-home');
 
-      // Async data — balance safe to run concurrently; identity must finish before transactions
-      fetchBalance(state.connectionId, data.canFetchBalance);
-      await fetchIdentity(state.connectionId);
-      fetchTransactions(state.connectionId);
+      // Async data — balance concurrent with identity→transactions; all must finish before triggers enable
+      await Promise.all([
+        fetchBalance(state.connectionId, data.canFetchBalance),
+        (async () => {
+          await fetchIdentity(state.connectionId);
+          await fetchTransactions(state.connectionId);
+        })()
+      ]);
+      enableTriggers();
 
     } catch (err) {
       showMsg('link-msg', 'Error: ' + err.message, 'error');
@@ -758,6 +808,49 @@
       setTxList(`<div class="tx-placeholder">${err.message}</div>`);
       setDev('dev-transactions', `<p class="dev-error">${err.message}</p>`);
     }
+  }
+
+  // ── API Trigger Buttons ───────────────────────────────────────────────────
+  function setTriggerState(btnId, running) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = running;
+    btn.classList.toggle('running', running);
+  }
+  function enableTriggers() {
+    ['trig-account','trig-balance','trig-identity','trig-transactions'].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = false;
+    });
+  }
+  async function triggerAccount() {
+    setTriggerState('trig-account', true);
+    try {
+      const res  = await fetch(`/api/aerosync/account/${state.connectionId}`);
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (!res.ok || data.error) { setDev('dev-account', `<p class="dev-error">${data.error || 'Account fetch failed'}</p>`); return; }
+      setDev('dev-account', devRow('Bank', data.bankName || data.institutionName) + devRow('Type', data.accountType) + devRow('Routing', data.routingNumber || data.routing_number) + devRow('Account #', data.accountNumber || data.account_number) + devRow('Display', data.accountNumberDisplay || data.maskedAccountNumber) + devRow('Status', data.connectionStatus));
+    } catch (err) {
+      setDev('dev-account', `<p class="dev-error">${err.message}</p>`);
+    } finally {
+      setTriggerState('trig-account', false);
+    }
+  }
+  async function triggerBalance() {
+    setTriggerState('trig-balance', true);
+    try { await fetchBalance(state.connectionId, true); }
+    finally { setTriggerState('trig-balance', false); }
+  }
+  async function triggerIdentity() {
+    setTriggerState('trig-identity', true);
+    try { await fetchIdentity(state.connectionId); }
+    finally { setTriggerState('trig-identity', false); }
+  }
+  async function triggerTransactions() {
+    setTriggerState('trig-transactions', true);
+    try { await fetchTransactions(state.connectionId); }
+    finally { setTriggerState('trig-transactions', false); }
   }
 
   // ── Claim Payout ──────────────────────────────────────────────────────────

@@ -59,7 +59,7 @@ async function getAeroSyncToken(debugLog) {
   const reqBody    = { apiKey: process.env.AEROSYNC_API_KEY, apiSecret: process.env.AEROSYNC_API_SECRET };
   const res  = await fetch(url, { method: 'POST', headers: reqHeaders, body: JSON.stringify(reqBody) });
   const data = await res.json();
-  debugLog.push({ service: 'AeroSync', label: 'POST /v2/token', request: { method: 'POST', url, headers: redactCreds(reqHeaders), body: redactCreds(reqBody) }, response: { status: res.status, body: data } });
+  debugLog.push({ service: 'AeroSync', label: 'POST Token', request: { method: 'POST', url, headers: redactCreds(reqHeaders), body: redactCreds(reqBody) }, response: { status: res.status, body: data } });
   if (!data.token) throw new Error('Failed to get AeroSync token: ' + JSON.stringify(data));
   aerosyncToken       = data.token;
   aerosyncTokenExpiry = Date.now() + (25 * 60 * 1000); // 25 min conservative cache
@@ -76,7 +76,7 @@ async function pollJob(connectionId, jobId, token, debugLog, maxWaitMs = 90000) 
     const url  = `${AEROSYNC_BASE}/v2/accounts/${connectionId}/job/${jobId}`;
     const res  = await fetch(url, { headers: reqHeaders });
     const data = await res.json();
-    debugLog.push({ service: 'AeroSync', label: `GET /v2/accounts/${connectionId}/job/${jobId}`, request: { method: 'GET', url, headers: reqHeaders }, response: { status: res.status, body: data } });
+    debugLog.push({ service: 'AeroSync', label: 'GET Job Poll', request: { method: 'GET', url, headers: reqHeaders }, response: { status: res.status, body: data } });
 
     const rawStatus = data.jobStatus || data.status || data.data?.status || '';
     const status = rawStatus.toLowerCase();
@@ -188,7 +188,7 @@ app.post('/api/aerosync/token', async (req, res) => {
     const reqBody    = { apiKey: process.env.AEROSYNC_API_KEY, apiSecret: process.env.AEROSYNC_API_SECRET, aeroPassUserUuid };
     const response   = await fetch(url, { method: 'POST', headers: reqHeaders, body: JSON.stringify(reqBody) });
     const data       = await response.json();
-    debugLog.push({ service: 'AeroSync', label: 'POST /v2/token_widget', request: { method: 'POST', url, headers: redactCreds(reqHeaders), body: redactCreds(reqBody) }, response: { status: response.status, body: data } });
+    debugLog.push({ service: 'AeroSync', label: 'POST Widget Token', request: { method: 'POST', url, headers: redactCreds(reqHeaders), body: redactCreds(reqBody) }, response: { status: response.status, body: data } });
     res.json({ ...data, _debug: debugLog });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -204,7 +204,7 @@ app.get('/api/aerosync/account/:connectionId', async (req, res) => {
     const reqHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-api-key': process.env.AEROSYNC_API_KEY };
     const r    = await fetch(url, { headers: reqHeaders });
     const data = await r.json();
-    debugLog.push({ service: 'AeroSync', label: `GET /v2/accounts/${req.params.connectionId}`, request: { method: 'GET', url, headers: reqHeaders }, response: { status: r.status, body: data } });
+    debugLog.push({ service: 'AeroSync', label: 'GET Account', request: { method: 'GET', url, headers: reqHeaders }, response: { status: r.status, body: data } });
     // AeroSync wraps account fields under an 'account' key
     const account = data.account || data.data || data;
     res.json({ ...account, _debug: debugLog });
@@ -223,7 +223,7 @@ app.get('/api/aerosync/balance/:connectionId', async (req, res) => {
     const reqHeaders = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'x-api-key': process.env.AEROSYNC_API_KEY };
     const r    = await fetch(url, { headers: reqHeaders });
     const data = await r.json();
-    debugLog.push({ service: 'AeroSync', label: `GET /v2/accounts/${cid}/balance`, request: { method: 'GET', url, headers: reqHeaders }, response: { status: r.status, body: data } });
+    debugLog.push({ service: 'AeroSync', label: 'GET Balance', request: { method: 'GET', url, headers: reqHeaders }, response: { status: r.status, body: data } });
     // AeroSync wraps balance fields under an 'account' key
     const balance = data.account || data.data || data;
     res.json({ data: balance, _debug: debugLog });
@@ -244,7 +244,7 @@ app.get('/api/aerosync/identity/:connectionId', async (req, res) => {
     const startUrl  = `${AEROSYNC_BASE}/v2/accounts/${cid}/identity`;
     const startRes  = await fetch(startUrl, { method: 'POST', headers: reqHeaders });
     const startData = await startRes.json();
-    debugLog.push({ service: 'AeroSync', label: `POST /v2/accounts/${cid}/identity`, request: { method: 'POST', url: startUrl, headers: reqHeaders }, response: { status: startRes.status, body: startData } });
+    debugLog.push({ service: 'AeroSync', label: 'POST Identity', request: { method: 'POST', url: startUrl, headers: reqHeaders }, response: { status: startRes.status, body: startData } });
 
     // Handle AC-111 — identity unavailable for manually-linked accounts
     if (startRes.status === 405 || startData?.error?.code === 'AC-111') {
@@ -262,7 +262,7 @@ app.get('/api/aerosync/identity/:connectionId', async (req, res) => {
     const getUrl = `${AEROSYNC_BASE}/v2/accounts/${cid}/identity`;
     const getRes = await fetch(getUrl, { headers: reqHeaders });
     const data   = await getRes.json();
-    debugLog.push({ service: 'AeroSync', label: `GET /v2/accounts/${cid}/identity`, request: { method: 'GET', url: getUrl, headers: reqHeaders }, response: { status: getRes.status, body: data } });
+    debugLog.push({ service: 'AeroSync', label: 'GET Identity', request: { method: 'GET', url: getUrl, headers: reqHeaders }, response: { status: getRes.status, body: data } });
     // AeroSync wraps identity fields under an 'identity' key
     const identity = data.identity || data.data || data;
     res.json({ data: identity, _debug: debugLog });
@@ -286,7 +286,7 @@ app.get('/api/aerosync/transactions/:connectionId', async (req, res) => {
     const startBody = { startDate, endDate };
     const startRes  = await fetch(startUrl, { method: 'POST', headers: reqHeaders, body: JSON.stringify(startBody) });
     const startData = await startRes.json();
-    debugLog.push({ service: 'AeroSync', label: `POST /v2/accounts/${cid}/transactions`, request: { method: 'POST', url: startUrl, headers: reqHeaders, body: startBody }, response: { status: startRes.status, body: startData } });
+    debugLog.push({ service: 'AeroSync', label: 'POST Transactions', request: { method: 'POST', url: startUrl, headers: reqHeaders, body: startBody }, response: { status: startRes.status, body: startData } });
 
     // Handle AC-114/AC-115 — transactions unavailable for manually-linked accounts (check error code regardless of HTTP status)
     if (['AC-114', 'AC-115'].includes(startData?.error?.code) || startRes.status === 405) {
@@ -309,7 +309,7 @@ app.get('/api/aerosync/transactions/:connectionId', async (req, res) => {
     const getUrl = `${AEROSYNC_BASE}/v2/accounts/${cid}/transactions?job_id=${jobId}`;
     const getRes = await fetch(getUrl, { headers: reqHeaders });
     const data   = await getRes.json();
-    debugLog.push({ service: 'AeroSync', label: `GET /v2/accounts/${cid}/transactions`, request: { method: 'GET', url: getUrl, headers: reqHeaders }, response: { status: getRes.status, body: data } });
+    debugLog.push({ service: 'AeroSync', label: 'GET Transactions', request: { method: 'GET', url: getUrl, headers: reqHeaders }, response: { status: getRes.status, body: data } });
 
     if (data.error) {
       return res.status(502).json({ error: `AeroSync error fetching transactions: ${data.error.message} (${data.error.code})`, _debug: debugLog });
