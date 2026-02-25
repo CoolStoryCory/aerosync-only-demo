@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PayMe</title>
+  <script type="module">
+    import { initAeroSyncWidget } from 'https://cdn.jsdelivr.net/npm/aerosync-web-sdk@2.1.4/dist/index.js';
+    window.initAeroSyncWidget = initAeroSyncWidget;
+  </script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #e2e4ed; color: #1a1a1a; }
+
+    /* ── Layout ── */
+    .app-layout {
+      display: grid;
+      grid-template-columns: 360px 1fr 380px;
+      gap: 20px;
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 24px 20px;
+      align-items: start;
+    }
+
+    /* ── Debug panel (left) ── */
+    .debug-panel { background: #0f172a; border-radius: 12px; border: 1px solid #1e293b; position: sticky; top: 20px; max-height: calc(100vh - 44px); overflow: hidden; display: flex; flex-direction: column; }
+    .debug-panel-header { padding: 10px 14px; background: #1e293b; border-radius: 12px 12px 0 0; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+    .debug-panel-header span { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+    .debug-clear-btn { font-size: 11px; color: #475569; background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+    .debug-clear-btn:hover { color: #94a3b8; background: #0f172a; }
+    #debug-log { overflow-y: auto; flex: 1; padding: 10px; }
+    .debug-empty { color: #334155; font-size: 12px; text-align: center; padding: 24px 12px; font-style: italic; }
+    .debug-entry { margin-bottom: 10px; border: 1px solid #1e293b; border-radius: 8px; overflow: hidden; font-size: 11px; }
+    .debug-entry-header { display: flex; align-items: center; gap: 7px; padding: 7px 10px; background: #1e293b; cursor: pointer; user-select: none; }
+    .debug-entry-header:hover { background: #263448; }
+    .debug-entry-chevron { font-size: 9px; color: #475569; flex-shrink: 0; transition: transform 0.15s; }
+    .debug-entry.open .debug-entry-chevron { transform: rotate(90deg); }
+    .debug-entry-body { display: none; }
+    .debug-entry.open .debug-entry-body { display: block; }
+    .debug-entry-label { font-size: 11px; color: #cbd5e1; font-family: monospace; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .svc-badge { font-size: 9px; font-weight: 800; padding: 2px 5px; border-radius: 3px; text-transform: uppercase; flex-shrink: 0; }
+    .svc-aeropay { background: #1d4ed8; color: #bfdbfe; }
+    .svc-aerosync { background: #6d28d9; color: #ddd6fe; }
+    .svc-dwolla { background: #b45309; color: #fde68a; }
+    .status-badge { font-size: 9px; font-weight: 700; padding: 2px 5px; border-radius: 3px; flex-shrink: 0; }
+    .status-ok { background: #14532d; color: #4ade80; }
+    .status-err { background: #7f1d1d; color: #f87171; }
+    details { background: #0f172a; }
+    details > summary { font-size: 10px; font-weight: 600; color: #475569; padding: 5px 10px; cursor: pointer; user-select: none; list-style: none; text-transform: uppercase; letter-spacing: 0.04em; display: flex; align-items: center; justify-content: space-between; }
+    details > summary:hover { color: #64748b; }
+    details > summary .summary-label::after { content: ' ▶'; font-size: 8px; }
+    details[open] > summary .summary-label::after { content: ' ▼'; font-size: 8px; }
+    .copy-btn { font-size: 9px; font-weight: 600; color: #94a3b8; background: #1e293b; border: 1px solid #475569; border-radius: 3px; padding: 2px 8px; cursor: pointer; flex-shrink: 0; }
+    .copy-btn:hover { color: #e2e8f0; border-color: #64748b; background: #263448; }
+    .debug-pre { margin: 0; padding: 8px 10px; font-size: 10px; line-height: 1.6; color: #e2e8f0; background: #0f172a; white-space: pre-wrap; word-break: break-all; font-family: monospace; max-height: 220px; overflow-y: auto; border-top: 1px solid #1e293b; }
+    .debug-cached { font-size: 10px; color: #334155; padding: 5px 10px; font-style: italic; }
+
+    /* ── Phone frame ── */
+    .phone-wrapper { display: flex; justify-content: center; padding: 20px 0; position: sticky; top: 20px; }
+    .phone-frame {
+      width: 393px; height: 852px;
+      background: #111;
+      border-radius: 55px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08), 0 0 0 2px #0a0a0a, 0 0 0 5px #1c1c1e, 0 40px 80px rgba(0,0,0,0.6);
+      flex-shrink: 0;
+    }
+    .dynamic-island { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: 126px; height: 34px; background: #000; border-radius: 20px; z-index: 100; }
+    .status-bar { position: absolute; top: 0; left: 0; right: 0; height: 58px; z-index: 50; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 28px 10px; pointer-events: none; }
+    .status-bar.dark { color: #fff; }
+    .status-bar.light { color: #1a1a1a; }
+    .status-time { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+    .status-icons { display: flex; align-items: center; gap: 5px; }
+    .status-icons svg { fill: currentColor; }
+
+    /* ── Screen transitions ── */
+    .screen-container { position: absolute; inset: 0; }
+    .screen { position: absolute; inset: 0; overflow-y: auto; overflow-x: hidden; transform: translateX(100%); transition: transform 0.34s cubic-bezier(0.25, 0.46, 0.45, 0.94); -webkit-overflow-scrolling: touch; }
+    .screen.is-active { transform: translateX(0); z-index: 1; }
+    .screen.is-behind { transform: translateX(-22%); }
+
+    /* ── Welcome screen ── */
+    .screen-welcome { background: linear-gradient(160deg, #0f0c29 0%, #302b63 55%, #1a2a4e 100%); display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 110px 32px 52px; color: white; }
+    .logo-mark { width: 72px; height: 72px; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2); border-radius: 22px; display: flex; align-items: center; justify-content: center; font-size: 34px; font-weight: 900; color: white; margin-bottom: 14px; }
+    .logo-wordmark { font-size: 30px; font-weight: 800; letter-spacing: -1px; color: white; }
+    .welcome-body { text-align: center; }
+    .welcome-headline { font-size: 30px; font-weight: 800; line-height: 1.15; margin-bottom: 14px; }
+    .welcome-sub { font-size: 15px; color: rgba(255,255,255,0.6); line-height: 1.55; }
+    .welcome-actions { width: 100%; display: flex; flex-direction: column; gap: 10px; }
+    .btn-welcome-primary { width: 100%; padding: 16px; border-radius: 14px; font-size: 16px; font-weight: 700; border: none; cursor: pointer; background: white; color: #302b63; transition: opacity 0.15s; }
+    .btn-welcome-primary:active { opacity: 0.85; }
+    .btn-welcome-link { background: none; border: none; color: rgba(255,255,255,0.65); font-size: 14px; cursor: pointer; padding: 8px; text-align: center; width: 100%; }
+    .btn-welcome-link b { color: white; }
+
+    /* ── Shared nav header ── */
+    .nav-header { display: flex; align-items: center; padding: 80px 20px 14px; gap: 12px; position: sticky; top: 0; z-index: 10; }
+    .back-btn { width: 34px; height: 34px; border-radius: 50%; background: #f0f1f5; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #374151; flex-shrink: 0; line-height: 1; }
+    .back-btn:active { background: #e5e7eb; }
+    .nav-title { font-size: 18px; font-weight: 700; }
+    .nav-subtitle { font-size: 12px; color: #9ca3af; margin-top: 1px; }
+
+    /* ── Light screens (signin, create, link) ── */
+    .screen-signin, .screen-create { background: #f7f8fa; }
+    .screen-link { background: #ffffff; }
+    .screen-content { padding: 4px 20px 48px; }
+
+    /* ── Forms ── */
+    .form-field { margin-bottom: 14px; }
+    .form-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+    .form-input { width: 100%; padding: 12px 14px; border: 1.5px solid #e5e7eb; border-radius: 12px; font-size: 15px; outline: none; background: white; transition: border-color 0.15s; }
+    .form-input:focus { border-color: #302b63; }
+    .form-select { width: 100%; padding: 12px 14px; border: 1.5px solid #e5e7eb; border-radius: 12px; font-size: 14px; outline: none; background: white; color: #374151; appearance: none; }
+    .form-select:focus { border-color: #302b63; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .btn-primary { width: 100%; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: 700; border: none; cursor: pointer; background: #302b63; color: white; margin-top: 6px; transition: opacity 0.15s; }
+    .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary:not(:disabled):active { opacity: 0.85; }
+    .inline-msg { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+    .inline-msg.info { background: #eff6ff; color: #1d4ed8; }
+    .inline-msg.success { background: #f0fdf4; color: #166534; }
+    .inline-msg.error { background: #fef2f2; color: #991b1b; }
+
+    /* ── Link screen ── */
+    .payout-preview-card { background: linear-gradient(135deg, #1a1a4e 0%, #302b63 100%); border-radius: 16px; padding: 20px; color: white; margin-bottom: 16px; }
+    .ppc-eyebrow { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.55); margin-bottom: 8px; }
+    .ppc-amount { font-size: 34px; font-weight: 800; letter-spacing: -1px; }
+    .ppc-from { font-size: 13px; color: rgba(255,255,255,0.7); margin-top: 3px; }
+    .ppc-note { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.12); line-height: 1.5; }
+    .connect-card { background: white; border-radius: 14px; padding: 16px; border: 1px solid #e5e7eb; margin-bottom: 16px; }
+    .connect-card-title { font-size: 14px; font-weight: 700; color: #111; margin-bottom: 4px; }
+    .connect-card-desc { font-size: 12px; color: #6b7280; line-height: 1.5; }
+    .screen-link.widget-active .nav-header { display: none; }
+    .screen-link.widget-active { overflow: hidden; }
+    .screen-link.widget-active .screen-content { padding: 58px 0 0; }
+    #aerosync-widget { width: 100%; min-height: 500px; }
+    .screen-link.widget-active #aerosync-widget { height: calc(852px - 58px); min-height: unset; overflow: hidden; }
+
+    /* ── Home screen ── */
+    .screen-home { background: #f0f1f5; }
+    .home-header { background: linear-gradient(160deg, #0f0c29 0%, #302b63 100%); padding: 68px 20px 72px; }
+    .home-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .home-logo { font-size: 22px; font-weight: 800; color: white; letter-spacing: -0.5px; }
+    .home-avatar { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.18); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; }
+    .home-greeting { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .home-name { font-size: 21px; font-weight: 700; color: white; margin-top: 2px; }
+    .balance-card { background: white; border-radius: 20px; padding: 18px 20px 16px; margin: -44px 16px 0; box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06); position: relative; z-index: 2; }
+    .bc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; margin-bottom: 6px; }
+    .bc-amount { font-size: 34px; font-weight: 800; letter-spacing: -1.5px; color: #111; min-height: 42px; }
+    .bc-bank { font-size: 12px; color: #9ca3af; margin-top: 3px; }
+    .bc-meta { display: flex; gap: 20px; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6; }
+    .bc-meta-item .bc-meta-label { font-size: 10px; color: #9ca3af; margin-bottom: 2px; }
+    .bc-meta-item .bc-meta-val { font-size: 13px; font-weight: 600; color: #374151; }
+    .home-body { padding: 16px 16px 80px; }
+    .payout-card { background: linear-gradient(135deg, #0d9488 0%, #10b981 60%, #34d399 100%); border-radius: 20px; padding: 20px; margin-bottom: 20px; }
+    .pc-badge { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(0,60,50,0.75); background: rgba(255,255,255,0.35); padding: 3px 9px; border-radius: 20px; display: inline-block; margin-bottom: 12px; }
+    .pc-amount { font-size: 32px; font-weight: 800; letter-spacing: -1px; color: white; }
+    .pc-from { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 2px; }
+    .pc-desc { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px; }
+    .btn-claim { width: 100%; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 700; border: none; cursor: pointer; background: white; color: #0d7a70; margin-top: 16px; transition: opacity 0.15s; }
+    .btn-claim:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-claim:not(:disabled):active { opacity: 0.85; }
+    .claim-error { font-size: 12px; color: rgba(255,255,255,0.9); margin-top: 10px; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 8px; display: none; }
+    .section-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; margin: 0 0 10px; }
+    .tx-list { background: white; border-radius: 16px; overflow: hidden; }
+    .tx-item { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #f3f4f6; }
+    .tx-item:last-child { border-bottom: none; }
+    .tx-icon { width: 38px; height: 38px; border-radius: 50%; background: #f3f4f6; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .tx-info { flex: 1; min-width: 0; }
+    .tx-name { font-size: 13px; font-weight: 600; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tx-date { font-size: 11px; color: #9ca3af; margin-top: 1px; }
+    .tx-amt { font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .tx-amt.credit { color: #059669; }
+    .tx-amt.debit { color: #dc2626; }
+    .tx-placeholder { padding: 20px; text-align: center; color: #9ca3af; font-size: 13px; font-style: italic; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.45; } }
+    .skeleton { background: #e5e7eb; border-radius: 4px; animation: pulse 1.5s ease-in-out infinite; display: inline-block; }
+
+    /* ── Success screen ── */
+    .screen-success { background: #f7f8fa; }
+    .success-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100%; padding: 80px 28px 60px; text-align: center; }
+    .success-icon { width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #34d399); display: flex; align-items: center; justify-content: center; font-size: 36px; color: white; margin-bottom: 24px; box-shadow: 0 8px 28px rgba(13,148,136,0.4); }
+    .success-title { font-size: 26px; font-weight: 800; color: #111; margin-bottom: 6px; }
+    .success-amount { font-size: 20px; font-weight: 700; color: #0d9488; margin-bottom: 8px; }
+    .success-desc { font-size: 14px; color: #6b7280; line-height: 1.55; margin-bottom: 28px; }
+    .success-detail { background: white; border-radius: 16px; padding: 4px 16px; width: 100%; margin-bottom: 28px; border: 1px solid #f3f4f6; }
+    .sd-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 11px 0; border-bottom: 1px solid #f3f4f6; }
+    .sd-row:last-child { border-bottom: none; }
+    .sd-label { color: #6b7280; }
+    .sd-value { font-weight: 600; color: #111; font-size: 12px; max-width: 55%; text-align: right; word-break: break-all; }
+    .btn-home { width: 100%; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: 700; border: none; cursor: pointer; background: #302b63; color: white; }
+
+    /* ── Dev panel (right) ── */
+    .dev-panel { background: white; border-radius: 12px; border: 1px solid #e5e7eb; position: sticky; top: 20px; max-height: calc(100vh - 44px); overflow-y: auto; padding: 16px; }
+    .dev-title { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+    .dev-title::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+    .dev-card { background: #f9fafb; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; border: 1px solid #f3f4f6; }
+    .dev-card-label { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .dev-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid #f3f4f6; }
+    .dev-row:last-child { border-bottom: none; }
+    .dev-lbl { color: #9ca3af; }
+    .dev-val { font-weight: 500; font-family: monospace; font-size: 11px; max-width: 58%; text-align: right; word-break: break-all; }
+    .dev-placeholder { color: #9ca3af; font-size: 12px; font-style: italic; }
+    .dev-error { color: #dc2626; font-size: 12px; }
+    .dev-tx-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .dev-tx-table th { text-align: left; color: #9ca3af; font-weight: 600; padding: 2px 0 6px; border-bottom: 1px solid #e5e7eb; }
+    .dev-tx-table td { padding: 5px 0; border-bottom: 1px solid #f9fafb; vertical-align: top; }
+    .dev-tx-table tr:last-child td { border-bottom: none; }
+    .dev-tx-right { text-align: right; font-family: monospace; }
+    .dev-tx-right.credit { color: #059669; }
+    .dev-tx-right.debit { color: #dc2626; }
+    .dev-tx-desc { max-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    @media (max-width: 1200px) { .app-layout { grid-template-columns: 300px 1fr; } .dev-panel { display: none; } }
+  </style>
+</head>
+<body>
+<div class="app-layout">
+
+  <!-- ── Left: API Debug Log ── -->
+  <aside class="debug-panel">
+    <div class="debug-panel-header">
+      <span>API Log</span>
+      <button class="debug-clear-btn" onclick="clearDebugLog()">Clear</button>
+    </div>
+    <div id="debug-log"><p class="debug-empty">No API calls yet.</p></div>
+  </aside>
+
+  <!-- ── Middle: Phone Frame ── -->
+  <div class="phone-wrapper">
+    <div class="phone-frame">
+      <div class="dynamic-island"></div>
+      <div class="status-bar dark" id="status-bar">
+        <span class="status-time" id="status-time">9:41</span>
+        <span class="status-icons">
+          <svg width="17" height="12" viewBox="0 0 17 12"><rect x="0" y="8" width="3" height="4" rx="0.5"/><rect x="4.5" y="5" width="3" height="7" rx="0.5"/><rect x="9" y="2" width="3" height="10" rx="0.5"/><rect x="13.5" y="0" width="3" height="12" rx="0.5"/></svg>
+          <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0.5" y="0.5" width="21" height="11" rx="3.5" stroke="currentColor" stroke-width="1" fill="none"/><rect x="22" y="3.5" width="2.5" height="5" rx="1" fill="currentColor" opacity="0.4"/><rect x="2" y="2" width="16" height="8" rx="2" fill="currentColor"/></svg>
+        </span>
+      </div>
+
+      <div class="screen-container">
+
+        <!-- Screen: Welcome -->
+        <div class="screen screen-welcome is-active" id="screen-welcome">
+          <div class="logo-mark">
+            <svg width="36" height="44" viewBox="0 0 40 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Coin ring -->
+              <circle cx="20" cy="27" r="16" stroke="white" stroke-width="2.5" fill="none" stroke-opacity="0.85"/>
+              <!-- Dollar sign vertical shaft, extending up through coin to arrowhead base -->
+              <line x1="20" y1="36" x2="20" y2="8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+              <!-- Dollar sign S-curve overlaid on shaft -->
+              <path d="M20 18 C28 18 28 26 20 26 C12 26 12 34 20 34" stroke="white" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+              <!-- Arrowhead breaking above the coin -->
+              <path d="M14 8 L20 1 L26 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <div class="logo-wordmark">PayMe</div>
+          <div class="welcome-body">
+            <div class="welcome-headline">Get paid<br/>instantly.</div>
+            <p class="welcome-sub">Connect your bank account to claim your pending payout from employers and clients.</p>
+          </div>
+          <div class="welcome-actions">
+            <button class="btn-welcome-primary" onclick="navTo('screen-create')">Get Started</button>
+            <button class="btn-welcome-link" onclick="navTo('screen-signin')">Already a member? <b>Sign in</b></button>
+          </div>
+        </div>
+
+        <!-- Screen: Sign In -->
+        <div class="screen screen-signin" id="screen-signin">
+          <div class="nav-header" style="background:#f7f8fa">
+            <button class="back-btn" onclick="navBack()">‹</button>
+            <div><div class="nav-title">Welcome back</div><div class="nav-subtitle">Select your account</div></div>
+          </div>
+          <div class="screen-content">
+            <div class="form-field">
+              <label class="form-label">Your account</label>
+              <select class="form-select" id="user-select">
+                <option value="">— Select your account —</option>
+              </select>
+            </div>
+            <button class="btn-primary" onclick="loadReturningUser()">Continue</button>
+            <div id="signin-msg"></div>
+          </div>
+        </div>
+
+        <!-- Screen: Create Account -->
+        <div class="screen screen-create" id="screen-create">
+          <div class="nav-header" style="background:#f7f8fa">
+            <button class="back-btn" onclick="navBack()">‹</button>
+            <div><div class="nav-title">Create account</div><div class="nav-subtitle">Takes about 30 seconds</div></div>
+          </div>
+          <div class="screen-content">
+            <div class="field-row">
+              <div class="form-field"><label class="form-label">First name</label><input class="form-input" type="text" id="firstName" placeholder="Jane" /></div>
+              <div class="form-field"><label class="form-label">Last name</label><input class="form-input" type="text" id="lastName" placeholder="Doe" /></div>
+            </div>
+            <div class="form-field"><label class="form-label">Email</label><input class="form-input" type="email" id="email" placeholder="jane@example.com" /></div>
+            <div class="form-field"><label class="form-label">Phone</label><input class="form-input" type="tel" id="phone" placeholder="+11234567890" /></div>
+            <button class="btn-primary" id="createUserBtn" onclick="createUser()">Create Account</button>
+            <div id="create-msg"></div>
+          </div>
+        </div>
+
+        <!-- Screen: Link Bank -->
+        <div class="screen screen-link" id="screen-link">
+          <div class="nav-header" style="background:#f7f8fa">
+            <button class="back-btn" onclick="navBack()">‹</button>
+            <div><div class="nav-title">Link your bank</div><div class="nav-subtitle">To receive your payout</div></div>
+          </div>
+          <div class="screen-content">
+            <div id="link-pre-content">
+              <div class="payout-preview-card">
+                <div class="ppc-eyebrow">Payout waiting</div>
+                <div class="ppc-amount">$400.00</div>
+                <div class="ppc-from">from PayMe Inc.</div>
+                <div class="ppc-note">Connect your bank account below to claim this payout. Your credentials are encrypted and never stored.</div>
+              </div>
+              <div class="connect-card">
+                <div class="connect-card-title">🏦 Secure bank connection</div>
+                <div class="connect-card-desc">Log in to your bank through AeroSync, our trusted open banking partner. We only request read access to verify your account details.</div>
+              </div>
+              <button class="btn-primary" id="openWidgetBtn" onclick="openWidget()">Connect Bank Account</button>
+            </div>
+            <div id="link-msg"></div>
+            <div id="aerosync-widget"></div>
+          </div>
+        </div>
+
+        <!-- Screen: Home -->
+        <div class="screen screen-home" id="screen-home">
+          <div class="home-header">
+            <div class="home-topbar">
+              <div class="home-logo">PayMe</div>
+              <div class="home-avatar" id="home-avatar">?</div>
+            </div>
+            <div class="home-greeting" id="home-greeting">Good morning,</div>
+            <div class="home-name" id="home-name">—</div>
+          </div>
+          <div class="balance-card">
+            <div class="bc-label">Available Balance</div>
+            <div class="bc-amount" id="bc-amount"><span class="skeleton" style="width:120px;height:32px;">&nbsp;</span></div>
+            <div class="bc-bank" id="bc-bank">Loading…</div>
+            <div class="bc-meta">
+              <div class="bc-meta-item"><div class="bc-meta-label">Current</div><div class="bc-meta-val" id="bc-current">—</div></div>
+              <div class="bc-meta-item"><div class="bc-meta-label">Updated</div><div class="bc-meta-val" id="bc-updated">—</div></div>
+            </div>
+          </div>
+          <div class="home-body">
+            <div class="payout-card" id="payout-card">
+              <div class="pc-badge">Payout Available</div>
+              <div class="pc-amount">$400.00</div>
+              <div class="pc-from">From PayMe Inc.</div>
+              <div class="pc-desc">For services rendered · February 2026</div>
+              <button class="btn-claim" id="claimBtn" onclick="claimPayout()">Claim Payout →</button>
+              <div class="claim-error" id="claim-error"></div>
+            </div>
+            <div class="section-label">Recent Activity</div>
+            <div class="tx-list" id="tx-list">
+              <div class="tx-placeholder">Loading transactions…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Screen: Success -->
+        <div class="screen screen-success" id="screen-success">
+          <div class="success-wrap">
+            <div class="success-icon">✓</div>
+            <div class="success-title">Payout claimed!</div>
+            <div class="success-amount">$400.00 received</div>
+            <p class="success-desc">Your payout from PayMe Inc. is on its way. You'll see it in your account within 1–3 business days.</p>
+            <div class="success-detail">
+              <div class="sd-row"><span class="sd-label">Amount</span><span class="sd-value">$400.00 USD</span></div>
+              <div class="sd-row"><span class="sd-label">From</span><span class="sd-value">PayMe Inc.</span></div>
+              <div class="sd-row"><span class="sd-label">To</span><span class="sd-value" id="success-bank">Your bank</span></div>
+              <div class="sd-row"><span class="sd-label">Transfer ID</span><span class="sd-value" id="success-xfer-id">—</span></div>
+              <div class="sd-row"><span class="sd-label">Est. arrival</span><span class="sd-value">1–3 business days</span></div>
+            </div>
+            <button class="btn-home" onclick="goHome()">Back to Home</button>
+          </div>
+        </div>
+
+      </div><!-- /screen-container -->
+    </div><!-- /phone-frame -->
+  </div><!-- /phone-wrapper -->
+
+  <!-- ── Right: Dev Panel ── -->
+  <div class="dev-panel">
+    <div class="dev-title">Dev Panel</div>
+    <div class="dev-card">
+      <div class="dev-card-label">Account</div>
+      <div id="dev-account"><p class="dev-placeholder">Waiting for bank link…</p></div>
+    </div>
+    <div class="dev-card">
+      <div class="dev-card-label">Balance</div>
+      <div id="dev-balance"><p class="dev-placeholder">Waiting for bank link…</p></div>
+    </div>
+    <div class="dev-card">
+      <div class="dev-card-label">Identity</div>
+      <div id="dev-identity"><p class="dev-placeholder">Waiting for bank link…</p></div>
+    </div>
+    <div class="dev-card">
+      <div class="dev-card-label">Transactions <span style="font-weight:400;font-size:9px;color:#9ca3af;text-transform:none">(last 30 days)</span></div>
+      <div id="dev-transactions"><p class="dev-placeholder">Waiting for bank link…</p></div>
+    </div>
+  </div>
+
+</div><!-- /app-layout -->
+
+<script>
+  // ── Clock ─────────────────────────────────────────────────────────────────
+  function updateClock() {
+    const now = new Date();
+    const h = now.getHours(), m = now.getMinutes().toString().padStart(2,'0');
+    document.getElementById('status-time').textContent = `${h}:${m}`;
+  }
+  updateClock();
+  setInterval(updateClock, 30000);
+
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const navStack = [];
+  function navTo(id) {
+    const current = document.querySelector('.screen.is-active');
+    if (current && current.id !== id) {
+      current.classList.remove('is-active');
+      current.classList.add('is-behind');
+      navStack.push(current.id);
+    }
+    const next = document.getElementById(id);
+    if (next) { next.classList.remove('is-behind'); next.classList.add('is-active'); }
+    updateStatusBar(id);
+  }
+  function navBack() {
+    const current = document.querySelector('.screen.is-active');
+    const prevId = navStack.pop();
+    if (!prevId || !current) return;
+    const prev = document.getElementById(prevId);
+    if (!prev) return;
+    current.classList.remove('is-active');
+    prev.classList.remove('is-behind');
+    prev.classList.add('is-active');
+    updateStatusBar(prevId);
+  }
+  function updateStatusBar(screenId) {
+    const dark = ['screen-welcome', 'screen-home'].includes(screenId);
+    document.getElementById('status-bar').className = 'status-bar ' + (dark ? 'dark' : 'light');
+  }
+  function updateGreeting() {
+    const h = new Date().getHours();
+    const g = h < 12 ? 'Good morning,' : h < 17 ? 'Good afternoon,' : 'Good evening,';
+    document.getElementById('home-greeting').textContent = g;
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  const state = {
+    aeroPassUserUuid: null, customerId: null, dwollaLocation: null,
+    connectionId: null, bankName: null,
+    routingNumber: null, accountNumber: null, bankAccountType: null,
+    fundingSourceLocation: null, masterFundingSourceHref: null,
+  };
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatCurrency(val) {
+    if (val == null) return 'N/A';
+    return '$' + Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  function devRow(label, value) {
+    if (value == null || value === '') return '';
+    return `<div class="dev-row"><span class="dev-lbl">${label}</span><span class="dev-val">${value}</span></div>`;
+  }
+  function setDev(id, html) { const el = document.getElementById(id); if (el) el.innerHTML = html; }
+  function showMsg(id, msg, type) {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = `<div class="inline-msg ${type}">${msg}</div>`;
+  }
+  function generateTestAccountNumber() {
+    return Math.floor(100000000 + Math.random() * 900000000).toString();
+  }
+
+  // ── Autofill on load ──────────────────────────────────────────────────────
+  const firstNames = ['Alice','Bob','Carol','David','Eva','Frank','Grace','Henry'];
+  const lastNames  = ['Smith','Johnson','Williams','Brown','Jones','Garcia','Miller','Davis'];
+  function rnd(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+  function rndDigits(n) { return Array.from({length:n}, () => Math.floor(Math.random()*10)).join(''); }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const first = rnd(firstNames), last = rnd(lastNames);
+    document.getElementById('firstName').value = first;
+    document.getElementById('lastName').value  = last;
+    document.getElementById('email').value     = `${first.toLowerCase()}.${last.toLowerCase()}+${rndDigits(4)}@example.com`;
+    const area = (Math.floor(Math.random()*8)+2) + rndDigits(2);
+    document.getElementById('phone').value = `+1${area}${rndDigits(7)}`;
+
+    try {
+      const res  = await fetch('/api/users');
+      const data = await res.json();
+      if (data.users && data.users.length) {
+        const sel = document.getElementById('user-select');
+        data.users.forEach(u => {
+          const opt = document.createElement('option');
+          opt.value = JSON.stringify(u);
+          opt.text  = `${u.name} (${u.email})`;
+          sel.appendChild(opt);
+        });
+      }
+    } catch {}
+  });
+
+  // ── Debug log ─────────────────────────────────────────────────────────────
+  function copyText(btn) {
+    const pre  = btn.closest('details').querySelector('.debug-pre');
+    navigator.clipboard.writeText(pre ? pre.textContent : '').then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    });
+  }
+  function logDebug(entries) {
+    if (!entries || !entries.length) return;
+    const container = document.getElementById('debug-log');
+    const empty = container.querySelector('.debug-empty');
+    if (empty) empty.remove();
+    entries.forEach(entry => {
+      const el = document.createElement('div');
+      el.className = 'debug-entry';
+      const svcClass = { Aeropay:'svc-aeropay', AeroSync:'svc-aerosync', Dwolla:'svc-dwolla' }[entry.service] || 'svc-aeropay';
+      const status   = entry.response?.status;
+      const statusHtml = status ? `<span class="status-badge ${status < 300 ? 'status-ok' : 'status-err'}">${status}</span>` : '';
+      const reqHtml  = entry.request
+        ? `<details><summary><span class="summary-label">Request</span><button class="copy-btn" onclick="event.stopPropagation();copyText(this)">Copy</button></summary><pre class="debug-pre">${JSON.stringify(entry.request, null, 2)}</pre></details>`
+        : `<div class="debug-cached">Token from cache — no new request</div>`;
+      const respBody = entry.response?.body ?? entry.response;
+      const respHtml = `<details><summary><span class="summary-label">Response</span><button class="copy-btn" onclick="event.stopPropagation();copyText(this)">Copy</button></summary><pre class="debug-pre">${JSON.stringify(respBody, null, 2)}</pre></details>`;
+      el.innerHTML = `<div class="debug-entry-header"><span class="svc-badge ${svcClass}">${entry.service}</span><span class="debug-entry-label">${entry.label}</span>${statusHtml}<span class="debug-entry-chevron">▶</span></div><div class="debug-entry-body">${reqHtml}${respHtml}</div>`;
+      el.querySelector('.debug-entry-header').addEventListener('click', () => el.classList.toggle('open'));
+      container.appendChild(el);
+    });
+    container.scrollTop = container.scrollHeight;
+  }
+  function clearDebugLog() {
+    document.getElementById('debug-log').innerHTML = '<p class="debug-empty">No API calls yet.</p>';
+  }
+
+  // ── Sign In: Returning user ───────────────────────────────────────────────
+  async function loadReturningUser() {
+    const sel = document.getElementById('user-select');
+    if (!sel.value) { showMsg('signin-msg', 'Please select an account.', 'error'); return; }
+    const u = JSON.parse(sel.value);
+    state.aeroPassUserUuid = u.aeroPassUserUuid;
+    state.customerId       = u.customerId;
+    state.dwollaLocation   = u.dwollaLocation;
+    const firstName = u.name.split(' ')[0];
+    setHomeUser(firstName);
+    navTo('screen-link');
+  }
+
+  // ── Create Account ────────────────────────────────────────────────────────
+  async function createUser() {
+    const btn       = document.getElementById('createUserBtn');
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName  = document.getElementById('lastName').value.trim();
+    const email     = document.getElementById('email').value.trim();
+    const phone     = document.getElementById('phone').value.trim();
+    if (!firstName || !lastName || !email || !phone) {
+      showMsg('create-msg', 'Please fill in all fields.', 'error'); return;
+    }
+    btn.disabled = true;
+    showMsg('create-msg', 'Creating your account…', 'info');
+    try {
+      const res  = await fetch('/api/user', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({firstName,lastName,email,phone}) });
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (!res.ok) throw new Error(data.error || JSON.stringify(data));
+      state.aeroPassUserUuid = data.aeroPassUserUuid;
+      state.customerId       = data.customerId;
+      state.dwollaLocation   = data.dwollaLocation;
+      setHomeUser(firstName);
+      showMsg('create-msg', 'Account created!', 'success');
+      setTimeout(() => navTo('screen-link'), 500);
+    } catch (err) {
+      showMsg('create-msg', 'Error: ' + err.message, 'error');
+      btn.disabled = false;
+    }
+  }
+
+  function setHomeUser(firstName) {
+    updateGreeting();
+    document.getElementById('home-name').textContent   = firstName;
+    document.getElementById('home-avatar').textContent = firstName[0].toUpperCase();
+  }
+
+  // ── Open AeroSync Widget ──────────────────────────────────────────────────
+  async function openWidget() {
+    const btn = document.getElementById('openWidgetBtn');
+    btn.disabled = true;
+    showMsg('link-msg', 'Connecting to your bank…', 'info');
+    try {
+      const res  = await fetch('/api/aerosync/token', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({aeroPassUserUuid:state.aeroPassUserUuid}) });
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (!data.token) throw new Error('No token: ' + JSON.stringify(data));
+      document.getElementById('link-pre-content').style.display = 'none';
+      showMsg('link-msg', '', 'info');
+      document.getElementById('screen-link').classList.add('widget-active');
+      const widget = initAeroSyncWidget({
+        token: data.token, aeroPassUserUuid: state.aeroPassUserUuid,
+        environment: 'sandbox', elementId: 'aerosync-widget', iframeTitle: 'Link Bank Account', theme: 'light',
+        onLoad:    () => {},
+        onSuccess: async (event) => {
+          const parsed = typeof event === 'string' ? JSON.parse(event) : event;
+          state.connectionId = parsed.user_password || parsed.connectionId;
+          state.bankName     = parsed.ClientName || parsed.clientName || 'Your Bank';
+          showMsg('link-msg', 'Bank connected! Setting up your account…', 'success');
+          await onBankLinked();
+        },
+        onClose: () => { document.getElementById('screen-link').classList.remove('widget-active'); if (!state.connectionId) { document.getElementById('link-pre-content').style.display = ''; showMsg('link-msg', 'Widget closed. Tap the button to try again.', 'info'); btn.disabled = false; } },
+        onError: (err) => { showMsg('link-msg', 'Widget error: ' + JSON.stringify(err), 'error'); btn.disabled = false; },
+        onEvent: (e) => console.log('AeroSync event:', e),
+      });
+      widget.launch();
+    } catch (err) {
+      document.getElementById('link-pre-content').style.display = '';
+      showMsg('link-msg', 'Error: ' + err.message, 'error');
+      btn.disabled = false;
+    }
+  }
+
+  // ── After bank link ───────────────────────────────────────────────────────
+  async function onBankLinked() {
+    try {
+      const res  = await fetch(`/api/aerosync/account/${state.connectionId}`);
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      state.routingNumber   = data.routingNumber  || data.routing_number  || '222222226';
+      state.accountNumber   = data.accountNumber  || data.account_number  || generateTestAccountNumber();
+      state.bankAccountType = (data.accountType   || data.account_type    || 'checking').toLowerCase();
+      state.bankName        = data.bankName || data.institutionName || data.institution || state.bankName;
+
+      showMsg('link-msg', 'Creating funding source…', 'info');
+      const fsRes  = await fetch('/api/dwolla/funding-source', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ customerId:state.customerId, routingNumber:state.routingNumber, accountNumber:state.accountNumber, bankAccountType:state.bankAccountType, name:`${state.bankName} Account` }) });
+      const fsData = await fsRes.json();
+      if (fsData._debug) logDebug(fsData._debug);
+      if (!fsRes.ok) throw new Error(fsData._embedded?.errors?.[0]?.message || JSON.stringify(fsData));
+      state.fundingSourceLocation = fsData.location;
+
+      const masterRes  = await fetch('/api/dwolla/master');
+      const masterData = await masterRes.json();
+      if (masterData._debug) logDebug(masterData._debug);
+      state.masterFundingSourceHref = masterData.href;
+
+      // Populate home screen static info
+      document.getElementById('bc-bank').textContent    = state.bankName;
+      document.getElementById('success-bank').textContent = state.bankName;
+
+      // Render dev account card
+      setDev('dev-account', devRow('Bank', state.bankName) + devRow('Type', data.accountType) + devRow('Routing', data.routingNumber || data.routing_number) + devRow('Account #', data.accountNumber || data.account_number) + devRow('Display', data.accountNumberDisplay || data.maskedAccountNumber) + devRow('Status', data.connectionStatus) + devRow('Funding source', fsData.fundingSourceId));
+
+      navTo('screen-home');
+
+      // Async data — balance safe to run concurrently; identity must finish before transactions
+      fetchBalance(state.connectionId, data.canFetchBalance);
+      await fetchIdentity(state.connectionId);
+      fetchTransactions(state.connectionId);
+
+    } catch (err) {
+      showMsg('link-msg', 'Error: ' + err.message, 'error');
+    }
+  }
+
+  // ── Fetch Balance ─────────────────────────────────────────────────────────
+  async function fetchBalance(connectionId, canFetchBalance) {
+    if (canFetchBalance === false) {
+      document.getElementById('bc-amount').textContent = 'N/A';
+      document.getElementById('bc-bank').textContent   = 'Balance unavailable (AC-105)';
+      setDev('dev-balance', '<p class="dev-error">Balance unavailable for this account type</p>');
+      return;
+    }
+    try {
+      const res  = await fetch(`/api/aerosync/balance/${connectionId}`);
+      const resp = await res.json();
+      if (resp._debug) logDebug(resp._debug);
+      if (!res.ok || resp.error) {
+        document.getElementById('bc-amount').textContent = 'N/A';
+        setDev('dev-balance', `<p class="dev-error">${resp.error || 'Balance unavailable'}</p>`);
+        return;
+      }
+      const d = resp.data;
+      if (!d || (d.availableBalance == null && d.currentBalance == null)) {
+        document.getElementById('bc-amount').textContent = 'N/A';
+        setDev('dev-balance', '<p class="dev-placeholder">No balance data returned.</p>');
+        return;
+      }
+      document.getElementById('bc-amount').textContent   = formatCurrency(d.availableBalance);
+      document.getElementById('bc-current').textContent  = formatCurrency(d.currentBalance);
+      if (d.lastRefreshTimestamp) document.getElementById('bc-updated').textContent = new Date(d.lastRefreshTimestamp).toLocaleDateString();
+      setDev('dev-balance', devRow('Available', formatCurrency(d.availableBalance)) + devRow('Current', formatCurrency(d.currentBalance)) + (d.currency ? devRow('Currency', d.currency) : '') + (d.lastRefreshTimestamp ? devRow('Updated', new Date(d.lastRefreshTimestamp).toLocaleString()) : ''));
+    } catch (err) {
+      document.getElementById('bc-amount').textContent = 'Error';
+      setDev('dev-balance', `<p class="dev-error">${err.message}</p>`);
+    }
+  }
+
+  // ── Fetch Identity ────────────────────────────────────────────────────────
+  async function fetchIdentity(connectionId) {
+    setDev('dev-identity', '<p class="dev-placeholder">Running identity job…</p>');
+    try {
+      const res  = await fetch(`/api/aerosync/identity/${connectionId}`);
+      const resp = await res.json();
+      if (resp._debug) logDebug(resp._debug);
+      if (!res.ok || resp.error) { setDev('dev-identity', `<p class="dev-error">${resp.error || 'Identity unavailable'}</p>`); return; }
+      const d = resp.data;
+      if (!d) { setDev('dev-identity', '<p class="dev-placeholder">No identity data.</p>'); return; }
+      const af   = d.addressFields;
+      const addr = af ? [af.address1, af.address2, af.city, af.stateProvince, af.postalCode, af.country].filter(Boolean).join(', ') : (d.address || null);
+      setDev('dev-identity', devRow('Name', d.accountHolderName) + devRow('Email', d.email) + devRow('Phone', d.phone) + devRow('Address', addr));
+    } catch (err) {
+      setDev('dev-identity', `<p class="dev-error">${err.message}</p>`);
+    }
+  }
+
+  // ── Fetch Transactions ────────────────────────────────────────────────────
+  function setTxList(html) { const el = document.getElementById('tx-list'); if (el) el.innerHTML = html; }
+
+  async function fetchTransactions(connectionId) {
+    setTxList('<div class="tx-placeholder">Loading transactions…</div>');
+    setDev('dev-transactions', '<p class="dev-placeholder">Running transactions job…</p>');
+    try {
+      const res  = await fetch(`/api/aerosync/transactions/${connectionId}`);
+      const resp = await res.json();
+      if (resp._debug) logDebug(resp._debug);
+      if (!res.ok || resp.error) {
+        setTxList(`<div class="tx-placeholder">${resp.error || 'Transactions unavailable'}</div>`);
+        setDev('dev-transactions', `<p class="dev-error">${resp.error || 'Unavailable'}</p>`);
+        return;
+      }
+      const txs = resp.data?.transactions || resp.data || [];
+      if (!txs.length) {
+        setTxList('<div class="tx-placeholder">No transactions found.</div>');
+        setDev('dev-transactions', '<p class="dev-placeholder">No transactions returned.</p>');
+        return;
+      }
+      // Home screen list (first 10)
+      const homeHtml = txs.slice(0, 10).map(tx => {
+        const amt    = Number(tx.amount || tx.transactionAmount || 0);
+        const credit = tx.type === 'CREDIT' || amt > 0;
+        const emoji  = credit ? '💰' : '🛒';
+        return `<div class="tx-item"><div class="tx-icon">${emoji}</div><div class="tx-info"><div class="tx-name">${tx.description || tx.memo || 'Transaction'}</div><div class="tx-date">${tx.date || tx.transactionDate || ''}</div></div><div class="tx-amt ${credit?'credit':'debit'}">${credit?'+':''}${formatCurrency(Math.abs(amt))}</div></div>`;
+      }).join('');
+      setTxList(homeHtml);
+
+      // Dev panel table (first 50)
+      const devRows = txs.slice(0, 50).map(tx => {
+        const amt    = Number(tx.amount || tx.transactionAmount || 0);
+        const credit = tx.type === 'CREDIT' || amt > 0;
+        return `<tr><td>${tx.date||tx.transactionDate||''}</td><td class="dev-tx-desc" title="${tx.description||''}">${tx.description||tx.memo||'—'}</td><td class="dev-tx-right ${credit?'credit':'debit'}">${credit?'+':''}${formatCurrency(Math.abs(amt))}</td></tr>`;
+      }).join('');
+      setDev('dev-transactions', `<table class="dev-tx-table"><thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amt</th></tr></thead><tbody>${devRows}</tbody></table>`);
+    } catch (err) {
+      setTxList(`<div class="tx-placeholder">${err.message}</div>`);
+      setDev('dev-transactions', `<p class="dev-error">${err.message}</p>`);
+    }
+  }
+
+  // ── Claim Payout ──────────────────────────────────────────────────────────
+  async function claimPayout() {
+    const btn = document.getElementById('claimBtn');
+    const errEl = document.getElementById('claim-error');
+    btn.disabled = true;
+    btn.textContent = 'Processing…';
+    errEl.style.display = 'none';
+    try {
+      const res  = await fetch('/api/dwolla/transfer', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sourceHref:state.masterFundingSourceHref, destinationHref:state.fundingSourceLocation, amount:'400.00' }) });
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (!res.ok) throw new Error(data._embedded?.errors?.[0]?.message || JSON.stringify(data));
+      document.getElementById('success-xfer-id').textContent = data.transferId;
+      document.getElementById('success-bank').textContent    = state.bankName;
+      navTo('screen-success');
+    } catch (err) {
+      errEl.textContent    = 'Error: ' + err.message;
+      errEl.style.display  = 'block';
+      btn.disabled         = false;
+      btn.textContent      = 'Claim Payout →';
+    }
+  }
+
+  // ── Go home after success ─────────────────────────────────────────────────
+  function goHome() {
+    const pc = document.getElementById('payout-card');
+    if (pc) pc.style.display = 'none';
+    // Use back-navigation style: current screen exits right, home slides in from left
+    const current = document.querySelector('.screen.is-active');
+    if (current) current.classList.remove('is-active'); // transitions to translateX(100%) — exits right
+    navStack.length = 0;
+    const home = document.getElementById('screen-home');
+    home.classList.remove('is-behind');
+    home.classList.add('is-active'); // transitions from translateX(-22%) to translateX(0)
+    updateStatusBar('screen-home');
+  }
+</script>
+</body>
+</html>
