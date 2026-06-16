@@ -230,6 +230,32 @@
     .trigger-btn.running .trigger-spinner { display: inline-block; }
     .trigger-divider { border: none; border-top: 1px solid #f1f3f5; margin: 0 0 14px; }
 
+    /* ── Aeropass (user-scoped) section ── */
+    .ap-section-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+    .ap-section-label span { font-weight: 400; font-size: 9px; color: #9ca3af; text-transform: none; letter-spacing: 0; }
+    .trigger-btn-full { width: 100%; margin-bottom: 10px; }
+    .trigger-btn-danger:not(:disabled):not(.running) { border-color: #fca5a5; box-shadow: 0 2px 6px rgba(220,38,38,0.10); }
+    .trigger-btn-danger:not(:disabled):not(.running):hover { background: #fef2f2; border-color: #f87171; box-shadow: 0 4px 12px rgba(220,38,38,0.16); }
+    .trigger-btn-danger .trigger-btn-name { color: #dc2626; }
+    .conn-row { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1.5px solid #e5e7eb; border-radius: 8px; margin-bottom: 6px; cursor: pointer; background: white; text-align: left; width: 100%; transition: border-color 0.12s; }
+    .conn-row:last-child { margin-bottom: 0; }
+    .conn-row:hover { border-color: #c7d2fe; }
+    .conn-row.selected { border-color: #302b63; box-shadow: inset 0 0 0 1px #302b63; }
+    .conn-row-info { flex: 1; min-width: 0; }
+    .conn-row-name { font-size: 12px; font-weight: 700; color: #111; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conn-row-sub { font-size: 10px; color: #9ca3af; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .conn-pill { font-size: 8px; font-weight: 700; padding: 2px 6px; border-radius: 10px; flex-shrink: 0; text-transform: uppercase; letter-spacing: 0.03em; }
+    .conn-pill.ok { background: #dcfce7; color: #166534; }
+    .conn-pill.warn { background: #fef3c7; color: #92400e; }
+    .ap-loadmore { display: block; width: 100%; text-align: center; font-size: 11px; font-weight: 600; color: #302b63; background: none; border: none; padding: 9px; cursor: pointer; }
+    .ap-loadmore:hover { text-decoration: underline; }
+    .ap-confirm { background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px; margin-top: 8px; }
+    .ap-confirm-text { font-size: 11px; color: #991b1b; line-height: 1.45; margin-bottom: 8px; }
+    .ap-confirm-actions { display: flex; gap: 6px; }
+    .ap-confirm-actions button { flex: 1; font-size: 11px; font-weight: 600; padding: 7px; border-radius: 6px; cursor: pointer; border: 1px solid #e5e7eb; }
+    .ap-btn-cancel { background: white; color: #374151; }
+    .ap-btn-delete { background: #dc2626; color: white; border-color: #dc2626; }
+
     @media (max-width: 1200px) { .app-layout { grid-template-columns: 300px 1fr; } .dev-panel { display: none; } }
   </style>
 </head>
@@ -448,6 +474,41 @@
       <div class="dev-card-label">Transactions <span style="font-weight:400;font-size:9px;color:#9ca3af;text-transform:none">(last 30 days)</span></div>
       <div id="dev-transactions"><p class="dev-placeholder">Waiting for bank link…</p></div>
     </div>
+
+    <!-- ── Aeropass (user-scoped) endpoints ── -->
+    <hr class="trigger-divider" style="margin-top:16px">
+    <div class="ap-section-label">User Connections (Aeropass) <span>all banks linked by this user</span></div>
+
+    <button class="trigger-btn trigger-btn-full" id="trig-connections" disabled onclick="triggerListConnections()" aria-label="List user connections">
+      <span class="trigger-btn-name">List Connections</span>
+      <span class="trigger-btn-path">GET /users/:uuid/connections</span>
+      <span class="trigger-btn-badge">AEROPASS</span>
+      <span class="trigger-spinner"></span>
+    </button>
+
+    <div class="dev-card">
+      <div class="dev-card-label">Connections</div>
+      <div id="dev-connections" role="radiogroup" aria-label="Select a bank connection"><p class="dev-placeholder">Tap “List Connections” to load.</p></div>
+    </div>
+
+    <div class="trigger-grid">
+      <button class="trigger-btn" id="trig-ap-tx" disabled onclick="triggerAeropassTx()" aria-label="Fetch transactions for selected connection">
+        <span class="trigger-btn-name">Fetch Tx</span>
+        <span class="trigger-btn-path">GET …/transactions</span>
+        <span class="trigger-btn-badge">ASYNC JOB</span>
+        <span class="trigger-spinner"></span>
+      </button>
+      <button class="trigger-btn trigger-btn-danger" id="trig-ap-del" disabled onclick="confirmDeleteTx()" aria-label="Delete transactions for selected connection">
+        <span class="trigger-btn-name">Delete Tx</span>
+        <span class="trigger-btn-path">DELETE …/transactions</span>
+        <span class="trigger-spinner"></span>
+      </button>
+    </div>
+
+    <div class="dev-card">
+      <div class="dev-card-label">Aeropass Transactions <span id="ap-tx-count" style="font-weight:400;font-size:9px;color:#9ca3af;text-transform:none"></span></div>
+      <div id="dev-ap-transactions"><p class="dev-placeholder">Select a connection, then Fetch Tx.</p></div>
+    </div>
   </div>
 
 </div><!-- /app-layout -->
@@ -502,12 +563,17 @@
     connectionId: null, bankName: null,
     routingNumber: null, accountNumber: null, bankAccountType: null,
     fundingSourceLocation: null, masterFundingSourceHref: null,
+    selectedConnectionId: null, apTxNextPage: null,
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function formatCurrency(val) {
     if (val == null) return 'N/A';
     return '$' + Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  // Escape API/bank-supplied values before injecting into innerHTML (prevents stored XSS)
+  function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
   }
   function devRow(label, value) {
     if (value == null || value === '') return '';
@@ -595,6 +661,7 @@
     state.dwollaLocation   = u.dwollaLocation;
     const firstName = u.name.split(' ')[0];
     setHomeUser(firstName);
+    enableConnectionsTrigger();
     navTo('screen-link');
   }
 
@@ -619,6 +686,7 @@
       state.customerId       = data.customerId;
       state.dwollaLocation   = data.dwollaLocation;
       setHomeUser(firstName);
+      enableConnectionsTrigger();
       showMsg('create-msg', 'Account created!', 'success');
       setTimeout(() => navTo('screen-link'), 500);
     } catch (err) {
@@ -648,6 +716,7 @@
       document.getElementById('screen-link').classList.add('widget-active');
       const widget = initAeroSyncWidget({
         token: data.token, aeroPassUserUuid: state.aeroPassUserUuid,
+        configurationId: '4c400e32-b99b-4080-aec8-dd850a94792c',
         environment: 'sandbox', elementId: 'aerosync-widget', iframeTitle: 'Link Bank Account', theme: 'light',
         onLoad:    () => {},
         onSuccess: async (event) => {
@@ -851,6 +920,152 @@
     setTriggerState('trig-transactions', true);
     try { await fetchTransactions(state.connectionId); }
     finally { setTriggerState('trig-transactions', false); }
+  }
+
+  // ── Aeropass: User Connections ────────────────────────────────────────────
+  function enableConnectionsTrigger() {
+    const btn = document.getElementById('trig-connections');
+    if (btn && state.aeroPassUserUuid) btn.disabled = false;
+  }
+
+  async function triggerListConnections() {
+    if (!state.aeroPassUserUuid) return;
+    setTriggerState('trig-connections', true);
+    setDev('dev-connections', '<p class="dev-placeholder">Loading connections…</p>');
+    try {
+      const res  = await fetch(`/api/aerosync/users/${state.aeroPassUserUuid}/connections`);
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (!res.ok || data.error) { setDev('dev-connections', `<p class="dev-error">${data.error || 'Failed to load connections'}</p>`); return; }
+      const conns = data.connections || [];
+      if (!conns.length) { setDev('dev-connections', '<p class="dev-placeholder">No connections found for this user.</p>'); return; }
+      const html = conns.map(c => {
+        const connected = (c.connectionStatus || '').toUpperCase() === 'CONNECTED';
+        const pill = connected
+          ? '<span class="conn-pill ok">Connected</span>'
+          : `<span class="conn-pill warn">${escapeHtml(c.connectionStatus || 'Unknown')}</span>`;
+        return `<button class="conn-row" role="radio" aria-checked="false" data-cid="${escapeHtml(c.connectionId)}">
+          <div class="conn-row-info"><div class="conn-row-name">${escapeHtml(c.institutionName || 'Bank')}</div><div class="conn-row-sub">${escapeHtml(c.accountNickname || 'Account')} · ••••${escapeHtml(c.accountNumberDisplay || '----')}</div></div>${pill}</button>`;
+      }).join('');
+      setDev('dev-connections', html);
+      // Attach handlers in JS (no data flows through an executable inline onclick)
+      document.querySelectorAll('#dev-connections .conn-row').forEach(row => {
+        row.addEventListener('click', () => selectConnection(row.dataset.cid, row));
+      });
+    } catch (err) {
+      setDev('dev-connections', `<p class="dev-error">${err.message}</p>`);
+    } finally {
+      setTriggerState('trig-connections', false);
+    }
+  }
+
+  function selectConnection(cid, el) {
+    state.selectedConnectionId = cid;
+    document.querySelectorAll('#dev-connections .conn-row').forEach(r => { r.classList.remove('selected'); r.setAttribute('aria-checked', 'false'); });
+    el.classList.add('selected'); el.setAttribute('aria-checked', 'true');
+    document.getElementById('trig-ap-tx').disabled  = false;
+    document.getElementById('trig-ap-del').disabled = false;
+    // Reset the transactions view for the newly selected connection
+    apTxAccum = []; state.apTxNextPage = null;
+    cancelDeleteTx();
+    document.getElementById('ap-tx-count').textContent = '';
+    setDev('dev-ap-transactions', '<p class="dev-placeholder">Tap “Fetch Tx” to load transactions.</p>');
+  }
+
+  // ── Aeropass: Transactions (with pagination) ──────────────────────────────
+  let apTxAccum = [];
+  let apTxLoading = false;       // guards against double-fire (e.g. fast Load-more clicks)
+  let apTxLastCount = null;
+  async function triggerAeropassTx(loadMore = false) {
+    if (!state.selectedConnectionId || apTxLoading) return;
+    const cid        = state.selectedConnectionId;          // capture: selection may change mid-flight
+    const usedCursor = loadMore ? state.apTxNextPage : null;
+    apTxLoading = true;
+    setTriggerState('trig-ap-tx', true);
+    if (!loadMore) {
+      apTxAccum = []; state.apTxNextPage = null;
+      setDev('dev-ap-transactions', '<p class="dev-placeholder">Running transactions job…</p>');
+    }
+    try {
+      const qs   = loadMore && usedCursor ? `?next_page=${encodeURIComponent(usedCursor)}` : '';
+      const res  = await fetch(`/api/aerosync/users/${encodeURIComponent(state.aeroPassUserUuid)}/connections/${encodeURIComponent(cid)}/transactions${qs}`);
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (cid !== state.selectedConnectionId) return;        // selection moved on — drop stale response
+      if (!res.ok || data.error) {
+        if (loadMore && apTxAccum.length) renderApTx(apTxLastCount, data.error || 'Could not load more');
+        else setDev('dev-ap-transactions', `<p class="dev-error">${escapeHtml(data.error || 'Transactions unavailable')}</p>`);
+        return;
+      }
+      const page = data.data || [];
+      apTxAccum = apTxAccum.concat(page);
+      const next = data.nextPage || null;
+      // Stop paginating if the cursor didn't advance or the page was empty (guards an infinite loop)
+      state.apTxNextPage = (next && next !== usedCursor && page.length) ? next : null;
+      apTxLastCount = data.count;
+      renderApTx(apTxLastCount);
+    } catch (err) {
+      if (loadMore && apTxAccum.length) renderApTx(apTxLastCount, err.message);
+      else setDev('dev-ap-transactions', `<p class="dev-error">${escapeHtml(err.message)}</p>`);
+    } finally {
+      apTxLoading = false;
+      setTriggerState('trig-ap-tx', false);
+    }
+  }
+
+  function renderApTx(count, errorNote) {
+    document.getElementById('ap-tx-count').textContent = apTxAccum.length ? `(showing ${apTxAccum.length})` : '';
+    if (!apTxAccum.length) { setDev('dev-ap-transactions', '<p class="dev-placeholder">No transactions in range.</p>'); return; }
+    const rows = apTxAccum.map(tx => {
+      const amt    = Number(tx.amount || 0);
+      const credit = String(tx.type || '').toUpperCase() === 'CREDIT';   // type is the direction contract; amounts are positive
+      return `<tr><td>${escapeHtml(tx.date || '')}</td><td class="dev-tx-desc" title="${escapeHtml(tx.description || '')}">${escapeHtml(tx.description || '—')}</td><td class="dev-tx-right ${credit ? 'credit' : 'debit'}">${credit ? '+' : '-'}${formatCurrency(Math.abs(amt))}</td></tr>`;
+    }).join('');
+    const errHtml = errorNote ? `<p class="dev-error" style="margin-top:6px">${escapeHtml(errorNote)}</p>` : '';
+    const more    = state.apTxNextPage ? `<button class="ap-loadmore" onclick="triggerAeropassTx(true)">Load more →</button>` : '';
+    setDev('dev-ap-transactions', `<table class="dev-tx-table"><thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amt</th></tr></thead><tbody>${rows}</tbody></table>${errHtml}${more}`);
+  }
+
+  // ── Aeropass: Delete Transactions (destructive, requires confirm) ─────────
+  function confirmDeleteTx() {
+    const cid = state.selectedConnectionId;
+    if (!cid) return;
+    if (document.getElementById('ap-confirm-box')) return; // already showing
+    const card = document.getElementById('dev-ap-transactions').parentElement;
+    const box  = document.createElement('div');
+    box.className = 'ap-confirm';
+    box.id = 'ap-confirm-box';
+    box.innerHTML = `<div class="ap-confirm-text">Delete all stored transactions for this connection? The bank stays linked. This can't be undone.</div>
+      <div class="ap-confirm-actions"><button class="ap-btn-cancel">Cancel</button><button class="ap-btn-delete">Delete</button></div>`;
+    box.querySelector('.ap-btn-cancel').addEventListener('click', cancelDeleteTx);
+    box.querySelector('.ap-btn-delete').addEventListener('click', () => doDeleteTx(cid)); // act on the captured target
+    card.appendChild(box);
+    box.querySelector('.ap-btn-cancel').focus(); // focus the safe default
+  }
+  function cancelDeleteTx() {
+    const b = document.getElementById('ap-confirm-box');
+    if (b) b.remove();
+  }
+  async function doDeleteTx(cid) {
+    cancelDeleteTx();
+    cid = cid || state.selectedConnectionId;
+    if (!cid) return;
+    setTriggerState('trig-ap-del', true);
+    try {
+      const res  = await fetch(`/api/aerosync/users/${encodeURIComponent(state.aeroPassUserUuid)}/connections/${encodeURIComponent(cid)}/transactions`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (!res.ok || data.error) { setDev('dev-ap-transactions', `<p class="dev-error">${escapeHtml(data.error || 'Delete failed')}</p>`); return; }
+      // Only clear the visible list if we're still looking at the connection we deleted
+      if (cid === state.selectedConnectionId) { apTxAccum = []; state.apTxNextPage = null; document.getElementById('ap-tx-count').textContent = ''; }
+      const n   = data.deleted;
+      const msg = n == null ? 'Transactions deleted.' : `Deleted ${n} transaction${n === 1 ? '' : 's'}.`;
+      setDev('dev-ap-transactions', `<p class="dev-placeholder">${msg}</p>`);
+    } catch (err) {
+      setDev('dev-ap-transactions', `<p class="dev-error">${escapeHtml(err.message)}</p>`);
+    } finally {
+      setTriggerState('trig-ap-del', false);
+    }
   }
 
   // ── Claim Payout ──────────────────────────────────────────────────────────
