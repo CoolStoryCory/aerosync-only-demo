@@ -231,9 +231,6 @@
     .trigger-divider { border: none; border-top: 1px solid #f1f3f5; margin: 0 0 14px; }
 
     /* ── Aeropass (user-scoped) section ── */
-    .ap-section-label { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
-    .ap-section-label span { font-weight: 400; font-size: 9px; color: #9ca3af; text-transform: none; letter-spacing: 0; }
-    .trigger-btn-full { width: 100%; margin-bottom: 10px; }
     .trigger-btn-danger:not(:disabled):not(.running) { border-color: #fca5a5; box-shadow: 0 2px 6px rgba(220,38,38,0.10); }
     .trigger-btn-danger:not(:disabled):not(.running):hover { background: #fef2f2; border-color: #f87171; box-shadow: 0 4px 12px rgba(220,38,38,0.16); }
     .trigger-btn-danger .trigger-btn-name { color: #dc2626; }
@@ -449,10 +446,16 @@
         <span class="trigger-btn-badge">ASYNC JOB</span>
         <span class="trigger-spinner"></span>
       </button>
-      <button class="trigger-btn" id="trig-transactions" disabled onclick="triggerTransactions()" aria-label="Fetch Transactions">
-        <span class="trigger-btn-name">Transactions</span>
-        <span class="trigger-btn-path">GET /transactions</span>
-        <span class="trigger-btn-badge">ASYNC JOB</span>
+      <button class="trigger-btn" id="trig-connections" disabled onclick="triggerListConnections()" aria-label="List user connections">
+        <span class="trigger-btn-name">List Connections</span>
+        <span class="trigger-btn-path">GET …/connections</span>
+        <span class="trigger-btn-badge">AEROPASS</span>
+        <span class="trigger-spinner"></span>
+      </button>
+      <button class="trigger-btn" id="trig-ap-tx" disabled onclick="triggerAeropassTx()" aria-label="Fetch transactions for selected connection">
+        <span class="trigger-btn-name">Fetch Tx</span>
+        <span class="trigger-btn-path">GET …/transactions</span>
+        <span class="trigger-btn-badge">AEROPASS · JOB</span>
         <span class="trigger-spinner"></span>
       </button>
     </div>
@@ -471,38 +474,8 @@
       <div id="dev-identity"><p class="dev-placeholder">Waiting for bank link…</p></div>
     </div>
     <div class="dev-card">
-      <div class="dev-card-label">Transactions <span style="font-weight:400;font-size:9px;color:#9ca3af;text-transform:none">(last 30 days)</span></div>
-      <div id="dev-transactions"><p class="dev-placeholder">Waiting for bank link…</p></div>
-    </div>
-
-    <!-- ── Aeropass (user-scoped) endpoints ── -->
-    <hr class="trigger-divider" style="margin-top:16px">
-    <div class="ap-section-label">User Connections (Aeropass) <span>all banks linked by this user</span></div>
-
-    <button class="trigger-btn trigger-btn-full" id="trig-connections" disabled onclick="triggerListConnections()" aria-label="List user connections">
-      <span class="trigger-btn-name">List Connections</span>
-      <span class="trigger-btn-path">GET /users/:uuid/connections</span>
-      <span class="trigger-btn-badge">AEROPASS</span>
-      <span class="trigger-spinner"></span>
-    </button>
-
-    <div class="dev-card">
-      <div class="dev-card-label">Connections</div>
+      <div class="dev-card-label">Connections <span style="font-weight:400;font-size:9px;color:#9ca3af;text-transform:none">(Aeropass · all linked banks)</span></div>
       <div id="dev-connections" role="radiogroup" aria-label="Select a bank connection"><p class="dev-placeholder">Tap “List Connections” to load.</p></div>
-    </div>
-
-    <div class="trigger-grid">
-      <button class="trigger-btn" id="trig-ap-tx" disabled onclick="triggerAeropassTx()" aria-label="Fetch transactions for selected connection">
-        <span class="trigger-btn-name">Fetch Tx</span>
-        <span class="trigger-btn-path">GET …/transactions</span>
-        <span class="trigger-btn-badge">ASYNC JOB</span>
-        <span class="trigger-spinner"></span>
-      </button>
-      <button class="trigger-btn trigger-btn-danger" id="trig-ap-del" disabled onclick="confirmDeleteTx()" aria-label="Delete transactions for selected connection">
-        <span class="trigger-btn-name">Delete Tx</span>
-        <span class="trigger-btn-path">DELETE …/transactions</span>
-        <span class="trigger-spinner"></span>
-      </button>
     </div>
 
     <div class="dev-card">
@@ -770,15 +743,21 @@
 
       navTo('screen-home');
 
-      // Async data — balance concurrent with identity→transactions; all must finish before triggers enable
+      // Balance + identity load concurrently; transactions now come from the Aeropass flow below
       await Promise.all([
         fetchBalance(state.connectionId, data.canFetchBalance),
-        (async () => {
-          await fetchIdentity(state.connectionId);
-          await fetchTransactions(state.connectionId);
-        })()
+        fetchIdentity(state.connectionId),
       ]);
       enableTriggers();
+
+      // The just-linked bank is now one of the user's connections — list them, pre-select it,
+      // then auto-fetch its transactions. Aeropass Fetch Tx is the transactions source and feeds
+      // both the phone activity list and the dev card. If the just-linked id isn't found in the
+      // list, fall back to the connection-scoped fetch so the activity list still populates.
+      enableConnectionsTrigger();
+      await triggerListConnections(state.connectionId);
+      if (state.selectedConnectionId) triggerAeropassTx();
+      else fetchTransactions(state.connectionId);
 
     } catch (err) {
       showMsg('link-msg', 'Error: ' + err.message, 'error');
@@ -887,7 +866,7 @@
     btn.classList.toggle('running', running);
   }
   function enableTriggers() {
-    ['trig-account','trig-balance','trig-identity','trig-transactions'].forEach(id => {
+    ['trig-account','trig-balance','trig-identity'].forEach(id => {
       const btn = document.getElementById(id);
       if (btn) btn.disabled = false;
     });
@@ -928,7 +907,7 @@
     if (btn && state.aeroPassUserUuid) btn.disabled = false;
   }
 
-  async function triggerListConnections() {
+  async function triggerListConnections(autoSelectCid) {
     if (!state.aeroPassUserUuid) return;
     setTriggerState('trig-connections', true);
     setDev('dev-connections', '<p class="dev-placeholder">Loading connections…</p>');
@@ -952,6 +931,11 @@
       document.querySelectorAll('#dev-connections .conn-row').forEach(row => {
         row.addEventListener('click', () => selectConnection(row.dataset.cid, row));
       });
+      // Pre-select a connection (e.g. the one the user just linked) so Fetch/Delete Tx are usable right away
+      if (autoSelectCid) {
+        const row = document.querySelector(`#dev-connections .conn-row[data-cid="${autoSelectCid}"]`);
+        if (row) selectConnection(autoSelectCid, row);
+      }
     } catch (err) {
       setDev('dev-connections', `<p class="dev-error">${err.message}</p>`);
     } finally {
@@ -964,7 +948,6 @@
     document.querySelectorAll('#dev-connections .conn-row').forEach(r => { r.classList.remove('selected'); r.setAttribute('aria-checked', 'false'); });
     el.classList.add('selected'); el.setAttribute('aria-checked', 'true');
     document.getElementById('trig-ap-tx').disabled  = false;
-    document.getElementById('trig-ap-del').disabled = false;
     // Reset the transactions view for the newly selected connection
     apTxAccum = []; state.apTxNextPage = null;
     cancelDeleteTx();
@@ -1004,6 +987,7 @@
       state.apTxNextPage = (next && next !== usedCursor && page.length) ? next : null;
       apTxLastCount = data.count;
       renderApTx(apTxLastCount);
+      renderPhoneTx(apTxAccum);   // Aeropass Fetch Tx is now the phone's "Recent Activity" source
     } catch (err) {
       if (loadMore && apTxAccum.length) renderApTx(apTxLastCount, err.message);
       else setDev('dev-ap-transactions', `<p class="dev-error">${escapeHtml(err.message)}</p>`);
@@ -1024,6 +1008,18 @@
     const errHtml = errorNote ? `<p class="dev-error" style="margin-top:6px">${escapeHtml(errorNote)}</p>` : '';
     const more    = state.apTxNextPage ? `<button class="ap-loadmore" onclick="triggerAeropassTx(true)">Load more →</button>` : '';
     setDev('dev-ap-transactions', `<table class="dev-tx-table"><thead><tr><th>Date</th><th>Description</th><th style="text-align:right">Amt</th></tr></thead><tbody>${rows}</tbody></table>${errHtml}${more}`);
+  }
+
+  // Render the phone's "Recent Activity" list from Aeropass transactions (first 10)
+  function renderPhoneTx(txs) {
+    if (!txs || !txs.length) { setTxList('<div class="tx-placeholder">No transactions found.</div>'); return; }
+    const html = txs.slice(0, 10).map(tx => {
+      const amt    = Number(tx.amount || 0);
+      const credit = String(tx.type || '').toUpperCase() === 'CREDIT';
+      const emoji  = credit ? '💰' : '🛒';
+      return `<div class="tx-item"><div class="tx-icon">${emoji}</div><div class="tx-info"><div class="tx-name">${escapeHtml(tx.description || 'Transaction')}</div><div class="tx-date">${escapeHtml(tx.date || '')}</div></div><div class="tx-amt ${credit ? 'credit' : 'debit'}">${credit ? '+' : ''}${formatCurrency(Math.abs(amt))}</div></div>`;
+    }).join('');
+    setTxList(html);
   }
 
   // ── Aeropass: Delete Transactions (destructive, requires confirm) ─────────
