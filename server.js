@@ -360,21 +360,36 @@ app.get('/api/aerosync/users/:uuid/connections/:connectionId/transactions', asyn
 
     // First page only: kick off + poll a refresh job. Pagination requests skip this.
     if (!next_page) {
-      const startUrl  = `${AEROSYNC_BASE}/v2/users/${uuid}/connections/${cid}/transactions/jobs`;
-      const startRes  = await fetch(startUrl, { method: 'POST', headers: reqHeaders });
-      const startData = await startRes.json();
-      debugLog.push({ service: 'AeroSync', label: 'POST Aeropass Tx Job', request: { method: 'POST', url: startUrl, headers: redactCreds(reqHeaders) }, response: { status: startRes.status, body: startData } });
+      const startUrl = `${AEROSYNC_BASE}/v2/users/${uuid}/connections/${cid}/transactions/jobs`;
+      let jobId = null;
+      const startDeadline = Date.now() + 90000;
 
-      // Manually-linked / unsupported accounts (same codes the connection-scoped route handles)
-      if (['AC-114', 'AC-115'].includes(startData?.error?.code) || startRes.status === 405) {
-        return res.status(405).json({ error: 'Transaction history is not available for this account (manually linked or unsupported)', _debug: debugLog });
-      }
-      if (startData?.error || (startRes.status >= 400)) {
-        return res.status(startRes.status >= 400 ? startRes.status : 502).json({ error: startData?.error?.message || `AeroSync error ${startRes.status}`, aerosyncResponse: startData, _debug: debugLog });
-      }
+      // Linking a bank kicks off AeroSync's own data-pull job, so a fresh start can return
+      // AC-112 ("a job is already in progress"). Wait for the running job to clear, then start ours.
+      while (true) {
+        const startRes  = await fetch(startUrl, { method: 'POST', headers: reqHeaders });
+        const startData = await startRes.json();
+        debugLog.push({ service: 'AeroSync', label: 'POST Aeropass Tx Job', request: { method: 'POST', url: startUrl, headers: redactCreds(reqHeaders) }, response: { status: startRes.status, body: startData } });
 
-      const jobId = startData.job_id || startData.jobId || startData.data?.job_id || startData.data?.jobId;
-      if (!jobId) return res.status(500).json({ error: 'No job_id in AeroSync start response', aerosyncResponse: startData, _debug: debugLog });
+        // Manually-linked / unsupported accounts (same codes the connection-scoped route handles)
+        if (['AC-114', 'AC-115'].includes(startData?.error?.code) || startRes.status === 405) {
+          return res.status(405).json({ error: 'Transaction history is not available for this account (manually linked or unsupported)', _debug: debugLog });
+        }
+        // A job is already running for this connection (e.g. the post-link data pull) — wait and retry
+        if (startRes.status === 409 || startData?.error?.code === 'AC-112') {
+          if (Date.now() >= startDeadline) {
+            return res.status(504).json({ error: 'A transactions job is already running for this connection; timed out waiting for it to finish', _debug: debugLog });
+          }
+          await new Promise(r => setTimeout(r, 3000));
+          continue;
+        }
+        if (startData?.error || startRes.status >= 400) {
+          return res.status(startRes.status >= 400 ? startRes.status : 502).json({ error: startData?.error?.message || `AeroSync error ${startRes.status}`, aerosyncResponse: startData, _debug: debugLog });
+        }
+        jobId = startData.job_id || startData.jobId || startData.data?.job_id || startData.data?.jobId;
+        if (!jobId) return res.status(500).json({ error: 'No job_id in AeroSync start response', aerosyncResponse: startData, _debug: debugLog });
+        break;
+      }
 
       const poll = await pollJob(cid, jobId, token, debugLog);
       if (!poll.done) return res.status(500).json({ error: poll.error?.message || 'Transactions job failed or timed out', _debug: debugLog });
