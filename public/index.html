@@ -689,13 +689,21 @@
       document.getElementById('screen-link').classList.add('widget-active');
       const widget = initAeroSyncWidget({
         token: data.token, aeroPassUserUuid: state.aeroPassUserUuid,
-        configurationId: '4c400e32-b99b-4080-aec8-dd850a94792c',
+        configurationId: 'f7f9111a-f794-4bd2-8cfd-05a8bfa646e3',
         environment: 'sandbox', elementId: 'aerosync-widget', iframeTitle: 'Link Bank Account', theme: 'light',
         onLoad:    () => {},
         onSuccess: async (event) => {
           const parsed = typeof event === 'string' ? JSON.parse(event) : event;
-          state.connectionId = parsed.user_password || parsed.connectionId;
-          state.bankName     = parsed.ClientName || parsed.clientName || 'Your Bank';
+          logDebug([{ service:'AeroSync', label:'Widget onSuccess payload', request:{ callback:'onSuccess' }, response:{ body: parsed } }]);
+          // Single-account: user_password (observed) or connectionId (documented). Multi-account: accounts[] (docs) or linkedAccounts[].
+          const first = (parsed.accounts || parsed.linkedAccounts || [])[0] || {};
+          state.connectionId = parsed.user_password || parsed.connectionId || first.connectionId;
+          state.bankName     = parsed.ClientName || parsed.clientName || first.clientName || 'Your Bank';
+          if (!state.connectionId) {
+            showMsg('link-msg', 'Linked, but no connectionId in the onSuccess payload — see the debug panel.', 'error');
+            btn.disabled = false;
+            return;
+          }
           showMsg('link-msg', 'Bank connected! Setting up your account…', 'success');
           await onBankLinked();
         },
