@@ -253,10 +253,166 @@
     .ap-btn-cancel { background: white; color: #374151; }
     .ap-btn-delete { background: #dc2626; color: white; border-color: #dc2626; }
 
+    /* ── MFA banner (Home) ── */
+    .mfa-banner { display: none; background: white; border-radius: 16px; padding: 14px 16px; margin-bottom: 16px; border: 1.5px solid #c7d2fe; box-shadow: 0 2px 8px rgba(48,43,99,0.08); }
+    .mfa-banner.show { display: block; }
+    .mfa-banner.is-done  { border-color: #86efac; }
+    .mfa-banner.is-error { border-color: #fca5a5; }
+    .mfa-banner-row { display: flex; gap: 12px; align-items: flex-start; }
+    .mfa-banner-icon { width: 36px; height: 36px; border-radius: 50%; background: #eef2ff; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; color: #302b63; flex-shrink: 0; }
+    .mfa-banner.is-done  .mfa-banner-icon { background: #dcfce7; color: #166534; }
+    .mfa-banner.is-error .mfa-banner-icon { background: #fee2e2; color: #991b1b; }
+    .mfa-banner-title { font-size: 14px; font-weight: 700; color: #111; }
+    .mfa-banner-body { font-size: 12px; color: #6b7280; margin-top: 2px; line-height: 1.45; }
+    .mfa-banner-btn { width: 100%; min-height: 44px; margin-top: 12px; border: none; border-radius: 12px; background: #302b63; color: white; font-size: 14px; font-weight: 700; cursor: pointer; }
+    .mfa-banner-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .mfa-spinner { width: 16px; height: 16px; border: 2px solid #c7d2fe; border-top-color: #302b63; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+
+    /* ── MFA widget overlay (covers the phone screen) ── */
+    /* The SDK wraps its iframe in a position:fixed, full-window box. A transform makes this overlay
+       the box's containing block, so the widget stays inside the phone (the link screen gets the
+       same effect from its slide-transition transform). */
+    .mfa-overlay { position: absolute; inset: 0; background: white; z-index: 60; display: none; transform: translateZ(0); }
+    .mfa-overlay.show { display: block; }
+    #aerosync-mfa-widget { width: 100%; height: 100%; overflow: hidden; }
+    .mfa-overlay iframe { width: 100% !important; height: calc(100% - 58px) !important; min-height: 0 !important; margin-top: 58px; }
+
+    /* ── Sandbox test guide (top strip) ── */
+    .test-guide { max-width: 1440px; margin: 14px auto 0; padding: 0 20px; }
+    .tg-header, .tg-body { background: white; border: 1px solid #e5e7eb; }
+    .tg-header { display: flex; align-items: center; gap: 14px; padding: 6px 16px; border-radius: 12px 12px 0 0; border-bottom-color: #f1f3f5; }
+    .test-guide.collapsed .tg-header { border-radius: 12px; border-bottom-color: #e5e7eb; }
+    .tg-title { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+    .tg-title::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #6d28d9; }
+    .tg-summary { flex: 1; font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tg-toggle { font-size: 12px; font-weight: 600; color: #302b63; background: #f5f4fb; border: 1px solid #e0def0; border-radius: 8px; padding: 6px 14px; min-height: 32px; cursor: pointer; flex-shrink: 0; }
+    .tg-toggle:hover { background: #ebe9f7; }
+    .tg-body { display: grid; grid-template-columns: 1.15fr 1fr 1fr; border-top: none; border-radius: 0 0 12px 12px; }
+    .test-guide.collapsed .tg-body { display: none; }
+    .tg-col { padding: 8px 16px 10px; min-width: 0; }
+    .tg-col + .tg-col { border-left: 1px solid #f1f3f5; }
+    .tg-label { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .tg-logins { width: 100%; border-collapse: collapse; font-size: 11px; }
+    .tg-logins th { text-align: left; color: #9ca3af; font-weight: 600; font-size: 10px; padding: 0 6px 4px 0; }
+    .tg-logins td { padding: 2px 6px 2px 0; border-top: 1px solid #f3f4f6; vertical-align: middle; }
+    .tg-logins td b { display: block; font-size: 11px; color: #111; }
+    .tg-logins td span { display: block; font-size: 10px; color: #9ca3af; line-height: 1.35; }
+    .tg-logins tr.tg-highlight td:first-child b { color: #6d28d9; }
+    .tg-any { font-size: 10px; color: #9ca3af; font-style: italic; }
+    .tg-steps { font-size: 11px; color: #374151; line-height: 1.45; padding-left: 16px; margin-bottom: 4px; }
+    .tg-steps code, .tg-logins code, .mfa-note code { font-family: monospace; font-size: 10px; background: #f3f4f6; padding: 0 4px; border-radius: 3px; }
+    .tg-status { border-top: 1px solid #f3f4f6; padding-top: 6px; }
+    .mfa-copy { font-family: monospace; font-size: 11px; background: white; color: #302b63; padding: 2px 7px; border-radius: 4px; border: 1px solid #c7d2fe; cursor: pointer; }
+    .mfa-copy:hover { border-color: #302b63; }
+    .mfa-run-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; margin: 2px 0 6px; }
+    .mfa-run-grid .trigger-btn { padding: 5px 8px; }
+    .job-chip { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.03em; flex-shrink: 0; }
+    .job-chip.starting, .job-chip.running { background: #dbeafe; color: #1d4ed8; }
+    .job-chip.pending_mfa { background: #fef3c7; color: #92400e; }
+    .job-chip.completed   { background: #dcfce7; color: #166534; }
+    .job-chip.failed, .job-chip.timed_out, .job-chip.error, .job-chip.conflict, .job-chip.unavailable { background: #fee2e2; color: #991b1b; }
+    .mfa-timer { font-size: 11px; color: #92400e; font-weight: 600; margin-top: 4px; }
+    .mfa-timeline { list-style: none; font-size: 10px; font-family: monospace; color: #475569; background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 8px; padding: 6px 8px; height: 118px; overflow-y: auto; }
+    .mfa-timeline li { padding: 2px 0; line-height: 1.4; }
+    .mfa-timeline li.sep { color: #302b63; font-weight: 700; margin-top: 4px; }
+    .mfa-timeline li.tg-empty { color: #9ca3af; font-style: italic; font-family: inherit; }
+    .mfa-timeline .t { color: #9ca3af; margin-right: 6px; }
+    .mfa-note { font-size: 10px; color: #9ca3af; margin-top: 6px; font-style: italic; line-height: 1.45; }
+    .app-layout { padding-top: 12px; }
+
+    .dev-toggle { display: none; }
+
     @media (max-width: 1200px) { .app-layout { grid-template-columns: 300px 1fr; } .dev-panel { display: none; } }
+    /* Small screens: the Dev Panel opens as a drawer from a floating button, so a demo on a small laptop keeps the job timeline */
+    @media (max-width: 1200px) {
+      .dev-toggle { display: block; position: fixed; right: 16px; bottom: 16px; z-index: 200; background: #302b63; color: white; border: none; border-radius: 20px; padding: 10px 16px; min-height: 44px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+      .tg-body { grid-template-columns: 1fr 1fr; }
+      .tg-col:last-child { grid-column: 1 / -1; border-left: none; border-top: 1px solid #f1f3f5; }
+      .tg-col:last-child .mfa-timeline { height: 64px; }
+      body.dev-open .dev-panel { display: block; position: fixed; top: 16px; right: 16px; bottom: 72px; width: 380px; max-width: calc(100vw - 32px); max-height: none; z-index: 150; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+    }
   </style>
 </head>
 <body>
+<!-- ── Top: Sandbox test guide (test logins + MFA test) ── -->
+<section class="test-guide" id="test-guide" aria-labelledby="tg-title">
+  <div class="tg-header">
+    <h2 class="tg-title" id="tg-title">Sandbox test guide</h2>
+    <div class="tg-summary" id="tg-summary" aria-live="polite"></div>
+    <button class="tg-toggle" id="tg-toggle" aria-expanded="true" aria-controls="tg-body" onclick="toggleTestGuide()">Hide</button>
+  </div>
+  <div class="tg-body" id="tg-body">
+
+    <!-- Column 1: every Aerobank login and what it tests -->
+    <div class="tg-col">
+      <div class="tg-label">Test logins · Aerobank</div>
+      <table class="tg-logins">
+        <thead><tr><th scope="col">Scenario</th><th scope="col">Username</th><th scope="col">Password</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>No MFA</b><span>Links right away</span></td>
+            <td><button class="mfa-copy" data-copy="sync" aria-label="Copy username sync">sync</button></td>
+            <td><button class="mfa-copy" data-copy="no_mfa" aria-label="Copy password no_mfa">no_mfa</button></td>
+          </tr>
+          <tr>
+            <td><b>MFA when linking</b><span>Security question during the link. Answer <code>correct</code></span></td>
+            <td><button class="mfa-copy" data-copy="sync" aria-label="Copy username sync">sync</button></td>
+            <td><button class="mfa-copy" data-copy="mfa" aria-label="Copy password mfa">mfa</button></td>
+          </tr>
+          <tr class="tg-highlight">
+            <td><b>MFA on a data job</b><span>Link succeeds; the first data job waits on MFA</span></td>
+            <td><button class="mfa-copy" data-copy="sync" aria-label="Copy username sync">sync</button></td>
+            <td><button class="mfa-copy" data-copy="mfa_trigger" aria-label="Copy password mfa_trigger">mfa_trigger</button></td>
+          </tr>
+          <tr>
+            <td><b>Wrong password</b><span>Incorrect-credentials error</span></td>
+            <td><button class="mfa-copy" data-copy="sync" aria-label="Copy username sync">sync</button></td>
+            <td><span class="tg-any">anything else</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Column 2: MFA on a data job: steps, job buttons, live status -->
+    <div class="tg-col">
+      <div class="tg-label">MFA on a data job</div>
+      <ol class="tg-steps">
+        <li>Link Aerobank with <code>sync</code> / <code>mfa_trigger</code>. The app starts a data job on its own.</li>
+        <li>Or start one yourself:</li>
+      </ol>
+      <div class="mfa-run-grid">
+        <button class="trigger-btn" id="mfa-run-identity" data-type="identity" disabled aria-label="Run identity job">
+          <span class="trigger-btn-name">Identity</span>
+          <span class="trigger-btn-path">POST /identity</span>
+          <span class="trigger-spinner"></span>
+        </button>
+        <button class="trigger-btn" id="mfa-run-balance" data-type="balance" disabled aria-label="Run balance refresh job">
+          <span class="trigger-btn-name">Balance</span>
+          <span class="trigger-btn-path">POST /refresh</span>
+          <span class="trigger-spinner"></span>
+        </button>
+        <button class="trigger-btn" id="mfa-run-transactions" data-type="transactions" disabled aria-label="Run transactions job">
+          <span class="trigger-btn-name">Transactions</span>
+          <span class="trigger-btn-path">POST /transactions</span>
+          <span class="trigger-spinner"></span>
+        </button>
+      </div>
+      <ol class="tg-steps" start="3">
+        <li>When the job waits on MFA, tap <b>Verify</b> in the phone and answer <code>correct</code>.</li>
+      </ol>
+      <div id="mfa-status" class="tg-status"><p class="dev-placeholder">No job yet. Link a bank to start.</p></div>
+    </div>
+
+    <!-- Column 3: job timeline -->
+    <div class="tg-col">
+      <div class="tg-label">Job timeline</div>
+      <ol class="mfa-timeline" id="mfa-timeline" aria-label="Job timeline"><li class="tg-empty">Status changes show up here.</li></ol>
+      <p class="mfa-note">In production, Aerosync also sends a <code>pending_mfa</code> webhook. This demo checks the job status every 3 seconds instead.</p>
+    </div>
+
+  </div>
+</section>
+
 <div class="app-layout">
 
   <!-- ── Left: API Debug Log ── -->
@@ -388,6 +544,7 @@
             </div>
           </div>
           <div class="home-body">
+            <div class="mfa-banner" id="mfa-banner" role="status" aria-live="polite"></div>
             <div class="payout-card" id="payout-card">
               <div class="pc-badge">Payout Available</div>
               <div class="pc-amount">$400.00</div>
@@ -422,11 +579,17 @@
         </div>
 
       </div><!-- /screen-container -->
+
+      <!-- MFA widget overlay: the widget relaunched with handleMFA for a job waiting on MFA -->
+      <div class="mfa-overlay" id="mfa-overlay" role="dialog" aria-modal="true" aria-label="Verify with your bank">
+        <div id="aerosync-mfa-widget"></div>
+      </div>
     </div><!-- /phone-frame -->
   </div><!-- /phone-wrapper -->
 
   <!-- ── Right: Dev Panel ── -->
-  <div class="dev-panel">
+  <button class="dev-toggle" id="dev-toggle" aria-expanded="false" aria-controls="dev-panel" onclick="toggleDevPanel()">Show Dev Panel</button>
+  <div class="dev-panel" id="dev-panel">
     <div class="dev-title">Dev Panel</div>
 
     <div class="trigger-grid">
@@ -531,6 +694,7 @@
   }
 
   // ── State ─────────────────────────────────────────────────────────────────
+  const CONFIGURATION_ID = 'f7f9111a-f794-4bd2-8cfd-05a8bfa646e3';   // sandbox widget branding; used by the link and MFA widgets
   const state = {
     aeroPassUserUuid: null, customerId: null, dwollaLocation: null,
     connectionId: null, bankName: null,
@@ -689,7 +853,7 @@
       document.getElementById('screen-link').classList.add('widget-active');
       const widget = initAeroSyncWidget({
         token: data.token, aeroPassUserUuid: state.aeroPassUserUuid,
-        configurationId: 'f7f9111a-f794-4bd2-8cfd-05a8bfa646e3',
+        configurationId: CONFIGURATION_ID,
         environment: 'sandbox', elementId: 'aerosync-widget', iframeTitle: 'Link Bank Account', theme: 'light',
         onLoad:    () => {},
         onSuccess: async (event) => {
@@ -751,21 +915,23 @@
 
       navTo('screen-home');
 
-      // Balance + identity load concurrently; transactions now come from the Aeropass flow below
+      // New link: drop any job still running for a previous connection, reset the MFA card
+      cancelActiveJob();
+      resetMfaCard();
+      setMfaBanner('hidden');
+      enableTriggers();
+      enableConnectionsTrigger();
+
+      // Cached balance (not a job) and the connections list (not a job) load concurrently.
+      // The list pre-selects the just-linked bank so the Aeropass transactions card can render.
       await Promise.all([
         fetchBalance(state.connectionId, data.canFetchBalance),
-        fetchIdentity(state.connectionId),
+        triggerListConnections(state.connectionId),
       ]);
-      enableTriggers();
 
-      // The just-linked bank is now one of the user's connections — list them, pre-select it,
-      // then auto-fetch its transactions. Aeropass Fetch Tx is the transactions source and feeds
-      // both the phone activity list and the dev card. If the just-linked id isn't found in the
-      // list, fall back to the connection-scoped fetch so the activity list still populates.
-      enableConnectionsTrigger();
-      await triggerListConnections(state.connectionId);
-      if (state.selectedConnectionId) triggerAeropassTx();
-      else fetchTransactions(state.connectionId);
+      // Data jobs run one at a time so the app never collides with itself, and so a job that
+      // pauses for MFA holds the line until the user verifies. See runPostLinkJobs.
+      runPostLinkJobs();
 
     } catch (err) {
       showMsg('link-msg', 'Error: ' + err.message, 'error');
@@ -789,20 +955,23 @@
         setDev('dev-balance', `<p class="dev-error">${resp.error || 'Balance unavailable'}</p>`);
         return;
       }
-      const d = resp.data;
-      if (!d || (d.availableBalance == null && d.currentBalance == null)) {
-        document.getElementById('bc-amount').textContent = 'N/A';
-        setDev('dev-balance', '<p class="dev-placeholder">No balance data returned.</p>');
-        return;
-      }
-      document.getElementById('bc-amount').textContent   = formatCurrency(d.availableBalance);
-      document.getElementById('bc-current').textContent  = formatCurrency(d.currentBalance);
-      if (d.lastRefreshTimestamp) document.getElementById('bc-updated').textContent = new Date(d.lastRefreshTimestamp).toLocaleDateString();
-      setDev('dev-balance', devRow('Available', formatCurrency(d.availableBalance)) + devRow('Current', formatCurrency(d.currentBalance)) + (d.currency ? devRow('Currency', d.currency) : '') + (d.lastRefreshTimestamp ? devRow('Updated', new Date(d.lastRefreshTimestamp).toLocaleString()) : ''));
+      renderBalance(resp.data);
     } catch (err) {
       document.getElementById('bc-amount').textContent = 'Error';
       setDev('dev-balance', `<p class="dev-error">${err.message}</p>`);
     }
+  }
+
+  function renderBalance(d) {
+    if (!d || (d.availableBalance == null && d.currentBalance == null)) {
+      document.getElementById('bc-amount').textContent = 'N/A';
+      setDev('dev-balance', '<p class="dev-placeholder">No balance data returned.</p>');
+      return;
+    }
+    document.getElementById('bc-amount').textContent   = formatCurrency(d.availableBalance);
+    document.getElementById('bc-current').textContent  = formatCurrency(d.currentBalance);
+    if (d.lastRefreshTimestamp) document.getElementById('bc-updated').textContent = new Date(d.lastRefreshTimestamp).toLocaleDateString();
+    setDev('dev-balance', devRow('Available', formatCurrency(d.availableBalance)) + devRow('Current', formatCurrency(d.currentBalance)) + (d.currency ? devRow('Currency', escapeHtml(d.currency)) : '') + (d.lastRefreshTimestamp ? devRow('Updated', new Date(d.lastRefreshTimestamp).toLocaleString()) : ''));
   }
 
   // ── Fetch Identity ────────────────────────────────────────────────────────
@@ -813,14 +982,18 @@
       const resp = await res.json();
       if (resp._debug) logDebug(resp._debug);
       if (!res.ok || resp.error) { setDev('dev-identity', `<p class="dev-error">${resp.error || 'Identity unavailable'}</p>`); return; }
-      const d = resp.data;
-      if (!d) { setDev('dev-identity', '<p class="dev-placeholder">No identity data.</p>'); return; }
-      const af   = d.addressFields;
-      const addr = af ? [af.address1, af.address2, af.city, af.stateProvince, af.postalCode, af.country].filter(Boolean).join(', ') : (d.address || null);
-      setDev('dev-identity', devRow('Name', d.accountHolderName) + devRow('Email', d.email) + devRow('Phone', d.phone) + devRow('Address', addr));
+      renderIdentity(resp.data);
     } catch (err) {
       setDev('dev-identity', `<p class="dev-error">${err.message}</p>`);
     }
+  }
+
+  function renderIdentity(d) {
+    if (!d) { setDev('dev-identity', '<p class="dev-placeholder">No identity data.</p>'); return; }
+    const af   = d.addressFields;
+    const addr = af ? [af.address1, af.address2, af.city, af.stateProvince, af.postalCode, af.country].filter(Boolean).join(', ') : (d.address || null);
+    const e    = v => v == null ? v : escapeHtml(v);
+    setDev('dev-identity', devRow('Name', e(d.accountHolderName)) + devRow('Email', e(d.email)) + devRow('Phone', e(d.phone)) + devRow('Address', e(addr)));
   }
 
   // ── Fetch Transactions ────────────────────────────────────────────────────
@@ -874,10 +1047,11 @@
     btn.classList.toggle('running', running);
   }
   function enableTriggers() {
-    ['trig-account','trig-balance','trig-identity'].forEach(id => {
+    ['trig-account','trig-balance'].forEach(id => {
       const btn = document.getElementById(id);
       if (btn) btn.disabled = false;
     });
+    setJobButtonsDisabled(!!jobRun.active);
   }
   async function triggerAccount() {
     setTriggerState('trig-account', true);
@@ -899,9 +1073,7 @@
     finally { setTriggerState('trig-balance', false); }
   }
   async function triggerIdentity() {
-    setTriggerState('trig-identity', true);
-    try { await fetchIdentity(state.connectionId); }
-    finally { setTriggerState('trig-identity', false); }
+    await runJobAndRender('identity');
   }
   async function triggerTransactions() {
     setTriggerState('trig-transactions', true);
@@ -1070,6 +1242,408 @@
     } finally {
       setTriggerState('trig-ap-del', false);
     }
+  }
+
+  // ══ MFA-aware job runner ══════════════════════════════════════════════════
+  // One job at a time. Starts a job, checks its status from the browser every 3s,
+  // and handles pending_mfa: shows the Home banner, relaunches the widget with
+  // handleMFA + jobId + connectionId, then keeps checking until completed or failed.
+  // Status checks happen here, not on the server, because a job waiting on MFA can
+  // sit for 5 minutes, far longer than one request should stay open.
+  const JOB_POLL_MS          = 3000;
+  const JOB_RUNNING_LIMIT_MS = 90000;               // a job that isn't waiting on MFA should finish well inside this
+  const MFA_TIMEOUT_MS       = 5 * 60 * 1000;       // sandbox MFA times out after 5 minutes
+  const MFA_GRACE_MS         = 10000;               // give Aerosync a moment to report its own outcome first
+  const MAX_POLL_ERRORS      = 3;                   // consecutive failed status checks before giving up
+  const TIMELINE_MAX         = 80;
+  const JOB_LABELS = { identity: 'Identity', balance: 'Balance refresh', transactions: 'Transactions', aeropass_transactions: 'Transactions (Aeropass)' };
+  const JOB_BUTTON_IDS = ['mfa-run-identity', 'mfa-run-balance', 'mfa-run-transactions', 'trig-identity'];
+
+  const jobRun = { active: null, last: null, seq: 0, retry: null, timeline: [], timerId: null };
+  const sleep  = ms => new Promise(r => setTimeout(r, ms));
+  const enc    = encodeURIComponent;
+
+  async function runJob(type, connectionId) {
+    if (jobRun.active) return { status: 'busy' };
+    const run = { id: ++jobRun.seq, type, connectionId, jobId: null, status: 'starting', rawStatus: null,
+                  mfaSince: null, answered: false, clockStart: Date.now(), result: null };
+    jobRun.active = jobRun.last = run;
+    setJobButtonsDisabled(true);
+    addTimeline(`${JOB_LABELS[type]} job`, 'sep');
+    renderMfaStatus();
+    try {
+      const body = { type };
+      if (type === 'aeropass_transactions') body.uuid = state.aeroPassUserUuid;
+      const res  = await fetch(`/api/jobs/${enc(connectionId)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (jobRun.active !== run) return { status: 'cancelled' };
+      if (res.status === 409) { addTimeline('409 AC-112: another job is already running on this connection'); return finishJob(run, { status: 'conflict', error: data.error }); }
+      if (res.status === 405) { addTimeline(`not available: ${data.code || 405}`); return finishJob(run, { status: 'unavailable', error: data.error }); }
+      if (!res.ok || !data.jobId) { addTimeline(`could not start: ${data.error || res.status}`); return finishJob(run, { status: 'error', error: data.error || 'Could not start the job' }); }
+
+      run.jobId = data.jobId;
+      addTimeline(`started · ${data.jobId}`);
+      setRunStatus(run, data.status === 'pending_mfa' ? 'pending_mfa' : 'running', data.rawStatus);
+
+      let errors = 0;
+      while (true) {
+        await sleep(JOB_POLL_MS);
+        if (jobRun.active !== run) return { status: 'cancelled' };
+        if (run.status === 'pending_mfa' && Date.now() - run.mfaSince > MFA_TIMEOUT_MS + MFA_GRACE_MS) {
+          addTimeline('5-minute MFA window passed: treated as timed out');
+          return finishJob(run, { status: 'timed_out', error: 'MFA was not answered within 5 minutes' });
+        }
+        if (run.status === 'running' && Date.now() - run.clockStart > JOB_RUNNING_LIMIT_MS) {
+          addTimeline('no result within 90 seconds');
+          return finishJob(run, { status: 'timed_out', error: 'The job did not finish within 90 seconds' });
+        }
+        let s;
+        try {
+          const r = await fetch(`/api/jobs/${enc(connectionId)}/${enc(run.jobId)}`);
+          s = await r.json();
+          if (!r.ok) throw new Error(s.error || `HTTP ${r.status}`);
+          errors = 0;
+        } catch (err) {
+          if (++errors >= MAX_POLL_ERRORS) { addTimeline(`status check failed ${errors}× in a row`); return finishJob(run, { status: 'error', error: err.message }); }
+          continue;
+        }
+        if (jobRun.active !== run) return { status: 'cancelled' };
+        // Only log status checks that change something, so a 5-minute MFA wait doesn't flood the API log
+        if (s.status !== run.status || s.rawStatus !== run.rawStatus) {
+          if (s._debug) logDebug(s._debug);
+          setRunStatus(run, s.status, s.rawStatus);
+        }
+        if (s.status === 'completed') break;
+        // Observed in sandbox (Nov 2026): when the MFA window closes, every job waiting on the
+        // connection flips to "Failed" at once. A failure while MFA was never answered is a timeout.
+        if (s.status === 'failed' && run.mfaSince && !run.answered) {
+          addTimeline('MFA window closed before it was answered');
+          return finishJob(run, { status: 'timed_out', error: `MFA was not answered in time (Aerosync: "${s.rawStatus}")` });
+        }
+        if (s.status === 'failed') return finishJob(run, { status: 'failed', error: `Aerosync reported "${s.rawStatus}"` });
+      }
+
+      const qs = new URLSearchParams({ type });
+      if (type === 'aeropass_transactions') qs.set('uuid', state.aeroPassUserUuid);
+      const rr = await fetch(`/api/jobs/${enc(connectionId)}/${enc(run.jobId)}/result?${qs}`);
+      const rd = await rr.json();
+      if (rd._debug) logDebug(rd._debug);
+      if (jobRun.active !== run) return { status: 'cancelled' };
+      if (!rr.ok) { addTimeline(`results failed: ${rd.error || rr.status}`); return finishJob(run, { status: 'error', error: rd.error || 'Could not fetch results' }); }
+      addTimeline('results fetched');
+      return finishJob(run, { status: 'completed', data: rd.data });
+    } catch (err) {
+      if (jobRun.active !== run) return { status: 'cancelled' };
+      addTimeline(`error: ${err.message}`);
+      return finishJob(run, { status: 'error', error: err.message });
+    }
+  }
+
+  function setRunStatus(run, status, rawStatus) {
+    const prev = run.status;
+    run.status = status; run.rawStatus = rawStatus;
+    addTimeline(`status → ${rawStatus || status}`);
+    if (status === 'pending_mfa' && prev !== 'pending_mfa') {
+      if (!run.mfaSince) run.mfaSince = Date.now();
+      // Already answered in the widget? Aerosync may still say Pending MFA for a few seconds.
+      setMfaBanner(run.answered ? 'checking' : 'waiting');
+      setTxList(`<div class="tx-placeholder">Waiting for ${escapeHtml(state.bankName || 'your bank')} to confirm it's you…</div>`);
+      startMfaTimer();
+    }
+    if (status !== 'pending_mfa' && prev === 'pending_mfa') {
+      stopMfaTimer();
+      run.clockStart = Date.now();   // the 90-second limit restarts once the job is moving again
+      if (status === 'running') setMfaBanner('checking');
+    }
+    renderMfaStatus();
+  }
+
+  function finishJob(run, result) {
+    run.status = result.status; run.result = result;
+    result.mfa = !!run.mfaSince;
+    stopMfaTimer();
+    closeMfaOverlay();
+    if (jobRun.active === run) jobRun.active = null;
+    setJobButtonsDisabled(false);
+    if (result.mfa) {
+      if (result.status === 'completed') setMfaBanner('done');
+      else if (result.status === 'timed_out') setMfaBanner('timed_out');
+      else setMfaBanner('failed');
+    }
+    renderMfaStatus();
+    return result;
+  }
+
+  function cancelActiveJob() {
+    if (jobRun.active) addTimeline('job abandoned: a new bank was linked');
+    jobRun.active = null;
+    stopMfaTimer();
+    closeMfaOverlay();
+    setJobButtonsDisabled(false);
+  }
+
+  // Runs one job and puts its results where they belong (phone + Dev Panel).
+  async function runJobAndRender(type, retryFn) {
+    if (!state.connectionId || jobRun.active) return { status: 'busy' };
+    jobRun.retry = retryFn || (() => runJobAndRender(type));
+    if (type === 'identity') setDev('dev-identity', '<p class="dev-placeholder">Running identity job…</p>');
+    if (type === 'balance')  setDev('dev-balance',  '<p class="dev-placeholder">Running balance refresh job…</p>');
+    if (type === 'transactions' || type === 'aeropass_transactions') setTxList('<div class="tx-placeholder">Loading transactions…</div>');
+    if (type === 'aeropass_transactions') setDev('dev-ap-transactions', '<p class="dev-placeholder">Running transactions job…</p>');
+
+    const result = await runJob(type, state.connectionId);
+    if (result.status === 'cancelled' || result.status === 'busy') return result;
+    const msg = result.mfa && result.status !== 'completed'
+      ? 'Not loaded: bank verification did not finish.'
+      : (result.error || 'Unavailable');
+
+    if (type === 'identity') {
+      if (result.status === 'completed') renderIdentity(result.data);
+      else setDev('dev-identity', `<p class="dev-error">${escapeHtml(msg)}</p>`);
+    }
+    if (type === 'balance') {
+      if (result.status === 'completed') renderBalance(result.data);
+      else setDev('dev-balance', `<p class="dev-error">${escapeHtml(msg)}</p>`);
+    }
+    if (type === 'transactions') {
+      if (result.status === 'completed') renderPhoneTx(result.data?.transactions || (Array.isArray(result.data) ? result.data : []));
+      else setTxList(`<div class="tx-placeholder">${escapeHtml(msg)}</div>`);
+    }
+    if (type === 'aeropass_transactions') {
+      if (result.status === 'completed') {
+        apTxAccum = result.data?.transactions || [];
+        state.apTxNextPage = result.data?.nextPage || null;
+        apTxLastCount = result.data?.count;
+        renderApTx(apTxLastCount);
+        renderPhoneTx(apTxAccum);
+      } else {
+        setTxList(`<div class="tx-placeholder">${escapeHtml(msg)}</div>`);
+        setDev('dev-ap-transactions', `<p class="dev-error">${escapeHtml(msg)}</p>`);
+      }
+    }
+    return result;
+  }
+
+  // After a link: identity, then transactions. If a job pauses for MFA, the next one waits.
+  // If verification fails or times out, the line stops; "Start again" resumes from that job.
+  async function runPostLinkJobs(startAt = 0) {
+    const txType = state.selectedConnectionId === state.connectionId ? 'aeropass_transactions' : 'transactions';
+    const queue  = ['identity', txType];
+    for (let i = startAt; i < queue.length; i++) {
+      const result = await runJobAndRender(queue[i], () => runPostLinkJobs(i));
+      if (result.status === 'cancelled') return;
+      if (result.mfa && result.status !== 'completed') return;
+    }
+  }
+
+  function retryMfaJob() {
+    setMfaBanner('hidden');
+    if (jobRun.retry && !jobRun.active) jobRun.retry();
+  }
+
+  function setJobButtonsDisabled(disabled) {
+    const ready = !!state.connectionId;
+    JOB_BUTTON_IDS.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = disabled || !ready;
+    });
+    document.querySelectorAll('.mfa-run-grid .trigger-btn').forEach(b => {
+      b.classList.toggle('running', disabled && jobRun.active?.type === b.dataset.type);
+    });
+  }
+
+  // ── MFA widget relaunch ───────────────────────────────────────────────────
+  async function openMfaWidget() {
+    const run = jobRun.active;
+    if (!run || run.status !== 'pending_mfa' || !run.jobId) return;
+    setMfaBanner('opening');
+    try {
+      const res  = await fetch('/api/aerosync/token', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aeroPassUserUuid: state.aeroPassUserUuid }) });
+      const data = await res.json();
+      if (data._debug) logDebug(data._debug);
+      if (!data.token) throw new Error('No widget token');
+      if (jobRun.active !== run || run.status !== 'pending_mfa') { setMfaBanner(run.status === 'running' ? 'checking' : 'hidden'); return; }
+
+      addTimeline('widget relaunched with handleMFA');
+      const host = document.getElementById('aerosync-mfa-widget');
+      host.innerHTML = '';
+      document.getElementById('mfa-overlay').classList.add('show');
+
+      const widget = initAeroSyncWidget({
+        token: data.token, aeroPassUserUuid: state.aeroPassUserUuid,
+        configurationId: CONFIGURATION_ID,
+        environment: 'sandbox', elementId: 'aerosync-mfa-widget', iframeTitle: 'Verify with your bank', theme: 'light',
+        style: { bgColor: '#ffffff', opacity: 1 },   // white behind the widget instead of the SDK's default dim backdrop
+        handleMFA: true, jobId: run.jobId, connectionId: run.connectionId,   // the three MFA parameters from the docs
+        onLoad: () => {},
+        onSuccess: (event) => {
+          let parsed = event;
+          try { parsed = typeof event === 'string' ? JSON.parse(event) : event; } catch {}
+          logDebug([{ service: 'AeroSync', label: 'MFA widget onSuccess payload', request: { callback: 'onSuccess', handleMFA: true, jobId: run.jobId }, response: { body: parsed } }]);
+          if (jobRun.active !== run) return;
+          run.answered = true;
+          addTimeline('MFA answered (widget onSuccess)');
+          setMfaBanner('checking');
+        },
+        onClose: () => {
+          closeMfaOverlay();
+          if (jobRun.active === run && !run.answered && run.status === 'pending_mfa') {
+            addTimeline('widget closed before MFA was answered');
+            setMfaBanner('not_finished');
+          }
+        },
+        onError: (err) => {
+          logDebug([{ service: 'AeroSync', label: 'MFA widget onError', request: { callback: 'onError', handleMFA: true, jobId: run.jobId }, response: { body: err } }]);
+          addTimeline('widget error');
+          closeMfaOverlay();
+          if (jobRun.active === run && !run.answered) setMfaBanner('not_finished', 'The verification screen hit a problem. Try again.');
+        },
+        onEvent: (e) => console.log('AeroSync MFA event:', e),
+      });
+      widget.launch();
+    } catch (err) {
+      addTimeline(`could not open widget: ${err.message}`);
+      closeMfaOverlay();
+      if (jobRun.active === run) setMfaBanner('not_finished', "We couldn't open the verification screen. Try again.");
+    }
+  }
+
+  function closeMfaOverlay() {
+    const overlay = document.getElementById('mfa-overlay');
+    if (!overlay.classList.contains('show')) return;
+    overlay.classList.remove('show');
+    document.getElementById('aerosync-mfa-widget').innerHTML = '';
+    // Return focus to the banner button, if there is one
+    setTimeout(() => document.getElementById('mfa-banner-btn')?.focus(), 0);
+  }
+
+  // ── Home banner ───────────────────────────────────────────────────────────
+  let mfaBannerMode = 'hidden';
+  let mfaBannerHideTimer = null;
+  function setMfaBanner(mode, bodyOverride) {
+    const el   = document.getElementById('mfa-banner');
+    const bank = escapeHtml(state.bankName || 'your bank');
+    clearTimeout(mfaBannerHideTimer);
+    mfaBannerMode = mode;
+    if (mode === 'hidden') { el.className = 'mfa-banner'; el.innerHTML = ''; return; }
+    const M = {
+      waiting:      { icon: '🔐', title: "Confirm it's you", body: `${bank} needs a quick check before we can finish setting up your account.`, btn: `Verify with ${bank}`, action: openMfaWidget },
+      opening:      { icon: '🔐', title: "Confirm it's you", body: `${bank} needs a quick check before we can finish setting up your account.`, btn: 'Opening…', disabled: true },
+      not_finished: { icon: '🔐', title: "Confirm it's you", body: "You haven't finished verifying yet.", btn: `Verify with ${bank}`, action: openMfaWidget },
+      checking:     { icon: '<span class="mfa-spinner" aria-hidden="true"></span>', title: `Checking with ${bank}…`, body: 'This usually takes a few seconds.' },
+      done:         { icon: '✓', cls: 'is-done',  title: "You're verified", body: 'Your account is up to date.' },
+      failed:       { icon: '!', cls: 'is-error', title: `We couldn't verify with ${bank}`, body: 'Try again, or link a different account.', btn: 'Try again', action: retryMfaJob },
+      timed_out:    { icon: '⏱', cls: 'is-error', title: 'Verification timed out', body: 'For your security, the check expired. Start again.', btn: 'Start again', action: retryMfaJob },
+    }[mode];
+    if (!M) return;
+    const hadFocus = document.activeElement?.id === 'mfa-banner-btn';
+    el.className = `mfa-banner show ${M.cls || ''}`;
+    el.innerHTML = `<div class="mfa-banner-row"><div class="mfa-banner-icon" aria-hidden="true">${M.icon}</div>`
+      + `<div><div class="mfa-banner-title">${M.title}</div><div class="mfa-banner-body">${bodyOverride ? escapeHtml(bodyOverride) : M.body}</div></div></div>`
+      + (M.btn ? `<button class="mfa-banner-btn" id="mfa-banner-btn" ${M.disabled ? 'disabled' : ''}>${M.btn}</button>` : '');
+    if (M.action) document.getElementById('mfa-banner-btn').addEventListener('click', M.action);
+    if (hadFocus) document.getElementById('mfa-banner-btn')?.focus();
+    if (mode === 'done') mfaBannerHideTimer = setTimeout(() => { if (mfaBannerMode === 'done') setMfaBanner('hidden'); }, 4000);
+  }
+
+  // ── Dev Panel: MFA job card ───────────────────────────────────────────────
+  function addTimeline(text, cls) {
+    const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    jobRun.timeline.push({ t, text, cls });
+    if (jobRun.timeline.length > TIMELINE_MAX) jobRun.timeline.shift();
+    const ol = document.getElementById('mfa-timeline');
+    ol.innerHTML = jobRun.timeline.map(e => `<li class="${e.cls || ''}">${e.cls === 'sep' ? '' : `<span class="t">${e.t}</span>`}${escapeHtml(e.text)}</li>`).join('');
+    ol.scrollTop = ol.scrollHeight;
+  }
+
+  function resetMfaCard() {
+    jobRun.timeline = []; jobRun.last = null; jobRun.retry = null;
+    document.getElementById('mfa-timeline').innerHTML = '<li class="tg-empty">Status changes show up here.</li>';
+    setDev('mfa-status', '<p class="dev-placeholder">No job yet.</p>');
+    renderTgSummary();
+  }
+
+  const fmtClock = ms => { const s = Math.max(0, Math.round(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+
+  function renderMfaStatus() {
+    const run = jobRun.last;
+    if (!run) return;
+    const chipText = CHIP_TEXT[run.status] || run.status;
+    const chip = `<span class="job-chip ${escapeHtml(run.status)}">${escapeHtml(chipText)}</span>`;
+    const idCell = run.jobId
+      ? `${escapeHtml(run.jobId)} <button class="mfa-copy" data-copy="${escapeHtml(run.jobId)}" aria-label="Copy job ID">copy</button>`
+      : '—';
+    setDev('mfa-status',
+      devRow('Job', escapeHtml(JOB_LABELS[run.type] || run.type)) +
+      devRow('Job ID', idCell) +
+      devRow('Status', chip + (run.rawStatus ? ` <span style="color:#9ca3af">${escapeHtml(run.rawStatus)}</span>` : '')) +
+      (run.result?.error && run.status !== 'completed' ? devRow('Detail', escapeHtml(run.result.error)) : '') +
+      `<div class="mfa-timer" id="mfa-timer"></div>`);
+    updateMfaTimer();
+  }
+
+  const CHIP_TEXT = { starting: 'starting', running: 'running', pending_mfa: 'pending MFA', completed: 'completed', failed: 'failed',
+                      timed_out: 'timed out', error: 'error', conflict: 'AC-112', unavailable: 'unavailable' };
+
+  // One-line status in the guide's header, so the MFA state stays visible when the guide is collapsed
+  function renderTgSummary() {
+    const el  = document.getElementById('tg-summary');
+    const run = jobRun.last;
+    if (!run) { el.textContent = 'Test logins and the MFA test'; return; }
+    let text = `${JOB_LABELS[run.type] || run.type} job`;
+    if (run === jobRun.active && run.status === 'pending_mfa' && run.mfaSince) {
+      text += ` · waiting ${fmtClock(Date.now() - run.mfaSince)} · expires in ${fmtClock(MFA_TIMEOUT_MS - (Date.now() - run.mfaSince))}`;
+    }
+    el.innerHTML = `<span class="job-chip ${escapeHtml(run.status)}">${escapeHtml(CHIP_TEXT[run.status] || run.status)}</span><span>${escapeHtml(text)}</span>`;
+  }
+
+  function updateMfaTimer() {
+    renderTgSummary();
+    const el  = document.getElementById('mfa-timer');
+    const run = jobRun.active;
+    if (!el) return;
+    if (!run || run.status !== 'pending_mfa' || !run.mfaSince) { el.textContent = ''; return; }
+    const waited = Date.now() - run.mfaSince;
+    el.textContent = `Waiting on MFA ${fmtClock(waited)} · expires in ${fmtClock(MFA_TIMEOUT_MS - waited)}`;
+  }
+  function startMfaTimer() { stopMfaTimer(); jobRun.timerId = setInterval(updateMfaTimer, 1000); updateMfaTimer(); }
+  function stopMfaTimer()  { clearInterval(jobRun.timerId); jobRun.timerId = null; updateMfaTimer(); }
+
+  // Run buttons and copy buttons in the MFA card (handlers attached here, not inline)
+  document.querySelectorAll('.mfa-run-grid .trigger-btn').forEach(btn => {
+    btn.addEventListener('click', () => runJobAndRender(btn.dataset.type));
+  });
+  document.getElementById('test-guide').addEventListener('click', (e) => {
+    const b = e.target.closest('.mfa-copy');
+    if (!b) return;
+    navigator.clipboard.writeText(b.dataset.copy).then(() => {
+      const old = b.textContent; b.textContent = 'copied'; setTimeout(() => b.textContent = old, 1200);
+    });
+  });
+
+  // ── Test guide: hide / show (remembered across reloads) ───────────────────
+  function toggleTestGuide(forceCollapsed) {
+    const guide     = document.getElementById('test-guide');
+    const collapsed = typeof forceCollapsed === 'boolean' ? forceCollapsed : !guide.classList.contains('collapsed');
+    guide.classList.toggle('collapsed', collapsed);
+    const btn = document.getElementById('tg-toggle');
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    btn.textContent = collapsed ? 'Show' : 'Hide';
+    try { localStorage.setItem('testGuideCollapsed', collapsed ? '1' : '0'); } catch {}
+  }
+  // Hidden by default; stays open only if the user opened it last time
+  let guideOpen = false;
+  try { guideOpen = localStorage.getItem('testGuideCollapsed') === '0'; } catch {}
+  toggleTestGuide(!guideOpen);
+  renderTgSummary();
+
+  // ── Dev Panel drawer on small screens ─────────────────────────────────────
+  function toggleDevPanel() {
+    const open = document.body.classList.toggle('dev-open');
+    const btn  = document.getElementById('dev-toggle');
+    btn.setAttribute('aria-expanded', String(open));
+    btn.textContent = open ? 'Hide Dev Panel' : 'Show Dev Panel';
   }
 
   // ── Claim Payout ──────────────────────────────────────────────────────────
